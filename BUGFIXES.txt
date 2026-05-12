@@ -1,0 +1,93 @@
+Bug Fixes Relative to the Original MATLAB Package
+===================================================
+
+The following bugs were identified by comparing Python and MATLAB outputs
+across multiple sites (siteFire1, siteFire2, siteGill, siteIRGA) and are
+corrected in both this Python package and documented here for the MATLAB code.
+
+
+1. Reference height (zRef) overridden by pressure sensor height
+   File: fluxes.m, line 28
+   ----------------------------------------------------------------
+   Bug: When a barometer is present, the original code sets
+        zRef = sensorInfo.P(1,3) -- the height of the first pressure
+        sensor (the highest level when sensors are stored in descending
+        order). This overrides the correctly initialised
+        zRef = min(sensorInfo.u(:,3)) and causes all height-dependent
+        reference quantities (T, RH, air density, Lv) to be drawn from
+        the wrong level, producing systematic errors in WPL-corrected
+        latent heat flux and density corrections across all sonic levels.
+
+   Fix (fluxes.m line 28): Remove or replace the override with:
+        zRef = min(sensorInfo.u(:,3));   % keep at lowest sonic level
+
+
+2. Reference sensors selected by hardcoded index 1 instead of closest to zRef
+   File: fluxes.m, lines 29-30, 136-137, 143-144, 150-151
+   -----------------------------------------------------------------------
+   Bug: The barometer and reference-humidity sensors are all selected with
+        sensorInfo.X(1,...), which picks the first row -- the highest
+        sensor when data is stored in descending height order. Affected:
+
+        Lines 29-30   : Pressure (P)    -- barometer from highest level
+        Lines 136-137 : irgaH2O         -- reference H2O from highest IRGA
+        Lines 143-144 : KH2O            -- reference H2O from highest KH2O
+        Lines 150-151 : LiH2O           -- reference H2O from highest Licor
+
+   Fix: Replace each hardcoded (1,...) index with a closest-height search:
+        [~, Pindex] = min(abs(sensorInfo.P(:,3) - zRef));
+        Ptble = sensorInfo.P(Pindex, 1);
+        Pcol  = sensorInfo.P(Pindex, 2);
+        Apply the same pattern for irgaH2O, KH2O, and LiH2O.
+
+
+3. Global planar-fit regression used unflagged data
+   File: findGlobalPF.m (Python: find_global_pf.py)
+   ----------------------------------------------------------------
+   Bug: The Python port of findGlobalPF omitted the quality-flag filtering
+        that the MATLAB original applies before the least-squares regression.
+        MATLAB masks out periods flagged by NaN, spike, wind-direction, and
+        sonic-diagnostic checks before fitting; the Python version applied
+        only a wind-speed range filter. Including flagged outlier periods
+        shifted the planar-fit coefficients (b0, b1, b2) in wind-direction
+        sectors with a disproportionate number of bad periods, causing
+        systematic errors in the rotated vertical wind and all downstream
+        flux quantities (H, tau, TKE, L, LHflux, CO2flux, eta, R, ...).
+
+   Fix (Python find_global_pf.py): Apply the combined
+        NanFlag | SpikeFlag | windDirectionFlag | sonicDiagnosticFlag mask
+        before computing PF coefficients, matching findGlobalPF.m lines 69-89.
+
+
+4. Wind direction histogram missing from global PF sector selection
+   File: findGlobalPF.m (Python: find_global_pf.py)
+   ----------------------------------------------------------------
+   Bug: The Python port replaced the MATLAB interactive figure (direction
+        histogram + velocity time series with live vertical bin markers)
+        with plain text prompts, making it impossible to choose wind-
+        direction sector boundaries visually.
+
+   Fix (Python find_global_pf.py): Restored the two-panel matplotlib figure
+        matching the MATLAB layout -- direction histogram (top) with green
+        dashed lines drawn as each bin boundary is typed, and u/v/w/speed
+        time series (bottom) with date markers for the optional date-barrier
+        step. Also corrected direction computation to use raw u/v with
+        manufacturer correction (RMYoung swap, Gill negate) instead of the
+        pre-averaged spdAndDir column, matching findGlobalPF.m lines 121-133.
+
+
+5. Slow-frequency tables caused spike-test failure
+   File: conditionData.m (Python: condition_data.py)
+   ----------------------------------------------------------------
+   Bug: The iterative spike-removal algorithm divides the data into windows
+        sized by avgPer x windowSizeFraction. For a 1-min (0.017 Hz) slow
+        table this collapses to ~30 samples per window, making the standard-
+        deviation estimate statistically unreliable and causing excessive
+        spike flagging of valid slow-sensor data (temperature, RH, pressure).
+
+   Fix: Skip spike removal for any table whose tableScanFrequency < 1 Hz;
+        apply only absolute-limits and NaN flagging. In MATLAB conditionData.m,
+        wrap the spike-test block with:
+            if info.tableScanFrequency(tblIdx) >= 1
+                % ... existing spike test code ...
+            end
