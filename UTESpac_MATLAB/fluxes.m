@@ -456,7 +456,7 @@ try
                     T1min = simpleAvg([data{1,Ttble}(:,Tcol), data{1,Ttble}(:,1)],info.avgSlowFreq,0);
                     RH1min = simpleAvg([data{1,RHtble}(:,RHcol), data{1,RHtble}(:,1)],info.avgSlowFreq,0);
                     Timestamp1min = simpleAvg([data{1,RHtble}(:,1), data{1,RHtble}(:,1)],info.avgSlowFreq,0);
-                    [virtualThetaSlowFreq, rSlowFreq, rho_airmoistSlowFreq, rho_airdrySlowFreq, rho_H2OSlowFreq] = get_virtulPotTemp(PsonSlowFreq, sonHeight - zRef, T1min, RH1min);
+                    [virtualThetaSlowFreq, rSlowFreq, rho_airmoistSlowFreq, rho_airdrySlowFreq, rho_H2OSlowFreq] = get_virtulPotTemp(info.siteElevation, sonHeight - zRef, T1min, RH1min);
                     virtualThetaAvg = simpleAvg([virtualThetaSlowFreq, Timestamp1min],info.avgPer,0); % K
                     rAvg = simpleAvg([rSlowFreq, Timestamp1min],info.avgPer,0); % g/kg, unsaturated mixing ratio
                     rho_airmoistAvg = simpleAvg([rho_airmoistSlowFreq, Timestamp1min],info.avgPer,0); % density of moist air (kg/m^3)

@@ -1,14 +1,15 @@
-function [virtualTheta, r, rho_airmoist, rhod, rhov] = get_virtulPotTemp(P_air, level, Tair, RH)
+function [virtualTheta, r, rho_airmoist, rhod, rhov] = get_virtulPotTemp(altitude, level, Tair, RH)
     % altitude: station altitude, @ 1980 m for Dolly Tower at FM site
     % level: HMP height
-    if median(Tair, 'omitmissing')<200
-        Tair = Tair + 273.15;  % put Tair in K
-    end
-
-    if median(P_air, 'omitmissing')<1000
-        P_air = P_air.*1000; % put P_air in Pa
-    end
-    % P_air = 101325*(1-2.25577*10^-5*(altitude+level))^5.25588; % Pa, find pRef from elevation: http://www.engineeringtoolbox.com/air-altitude-pressure-d_462.html
+    
+    % if median(Tair, 'omitmissing')<200
+    %     Tair = Tair + 273.15;  % put Tair in K
+    % end
+    % 
+    % if median(P_air, 'omitmissing')<1000
+    %     P_air = P_air.*1000; % put P_air in Pa
+    % end
+    P_air = 101325*(1-2.25577*10^-5*(altitude+level))^5.25588; % Pa, find pRef from elevation: http://www.engineeringtoolbox.com/air-altitude-pressure-d_462.html
     e_saturated = 1000 .* exp(52.57633 - 6790.4985./Tair - 5.02808.*log(Tair)); % Pa, find saturated water vapor presure from ATM 133 lecture
     e_air = e_saturated .* (RH./100); % Pa, unsaturated water vapor presure
     r = 621.97 .* e_air ./ (P_air - e_air); % g/kg, unsaturated mixing ratio
