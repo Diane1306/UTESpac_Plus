@@ -91,3 +91,131 @@ corrected in both this Python package and documented here for the MATLAB code.
             if info.tableScanFrequency(tblIdx) >= 1
                 % ... existing spike test code ...
             end
+
+
+===================================================
+Additional MATLAB Bug Fixes (found during Python port development)
+===================================================
+
+6. wCol, TsSpikeFlag, and spd_raw used wrong column indices
+   File: fluxes.m, lines 339, 353, 389
+   ----------------------------------------------------------------
+   Bug: Three variables were indexed using the loop counter ii or a
+        hardcoded first-column assumption instead of a height-matched
+        lookup, causing the wrong data column to be used when multiple
+        sonics are present at different heights.
+
+        wCol        -- w-component column selected by loop index, not
+                       matched to sonHeight
+        TsSpikeFlag -- sonic temperature spike flag selected by loop
+                       index instead of height-matched TsCol
+        spd_raw     -- computed from a fixed column rather than from
+                       the manufacturer-corrected u/v components
+
+   Fix: All three now use height-matched column selection:
+        wCol = sensorInfo.w(sensorInfo.w(:,3)==sonHeight, 2);
+        TsSpikeFlag = output.(spikeFlagTableName)(:, TsCol);
+        spd_raw = sqrt(u_WD.^2 + v_WD.^2);
+
+
+7. Manufacturer correction missing in global PF direction calculation
+   File: findGlobalPF.m, line 119
+   ----------------------------------------------------------------
+   Bug: Wind direction used for binning data into PF sectors was
+        computed directly from raw u/v without applying the sonic
+        manufacturer correction. For RMYoung sonics (u and v axes
+        swapped) and Gill WindmasterPro sonics (both axes negated),
+        this produced incorrect wind directions, assigning data to
+        the wrong sector and biasing the PF coefficients.
+
+   Fix: Apply manufacturer correction before computing direction:
+        Campbell (code 1): uDir=u, vDir=v  (no change)
+        RMYoung  (code 0): uDir=v, vDir=-u (swap + negate)
+        Gill     (code 2): uDir=-u, vDir=-v (negate both)
+        direction = mod(atan2(-vDir, uDir)*180/pi + bearing, 360);
+
+
+8. sonicRotation array size mismatch and missing PFSonicHeader
+   File: sonicRotation.m, lines 231, 246
+   ----------------------------------------------------------------
+   Bug 1: N was computed as (ceil(t(end))-floor(t(1))) / avgPer_days
+          without clamping to the actual length of cosGamma, causing
+          an index-out-of-bounds error when the data window slightly
+          exceeds the expected number of averaging periods.
+   Fix:   N = min(floor(...), length(cosGamma));
+
+   Bug 2: output.PFSonicHeader was never assigned for the u-component
+          column (index 3*ii-2), leaving the first header entry empty.
+   Fix:   output.PFSonicHeader{1,3*ii-2} = sprintf('%gm:u', sonHeight);
+
+
+9. findFiles skipped non-directory entries and had off-by-one date indexing
+   File: findFiles.m, lines 6, 124, 130
+   ----------------------------------------------------------------
+   Bug 1: dir(fullfile(rootFolder,'site*')) returns both folders and
+          files whose names start with "site". Non-directory matches
+          caused downstream errors when the code tried to open them as
+          site folders.
+   Fix:   sitesStruct = sitesStruct([sitesStruct.isdir]);
+
+   Bug 2: Date-row index was floor(csvDates(jj)) - dateBegin + 1,
+          which introduced a one-row offset so the last date row was
+          always out of bounds.
+   Fix:   Remove the +1: floor(csvDates(jj)) - dateBegin
+
+   Bug 3: Empty-row removal used a partial check
+          (cellfun(@isempty, dataFiles(:,1))) that only looked at the
+          first table column. If a date had data only in a non-first
+          table, the row was incorrectly deleted.
+   Fix:   dataFiles(all(cellfun(@isempty,dataFiles),2),:) = [];
+
+
+===================================================
+Python Port Bug Fixes (found by comparison to MATLAB reference outputs)
+===================================================
+
+10. CO2 concentration (ppm) offset by ~38 ppm
+    File: utespac/fluxes.py
+    ----------------------------------------------------------------
+    Two compounding root causes:
+
+    (a) Barometer validity check: the condition
+        |P_measured - P_ref| / P_ref > 5%
+        was discarding valid ~97 kPa sensor readings because P_ref
+        was calculated from site elevation alone (~89.9 kPa for a
+        high-altitude site). MATLAB always uses the raw barometer
+        value (Pson) for ppm conversion regardless of this check;
+        Python was using P_ref as fallback. Fix: store P_raw_hf
+        unconditionally so ppm always uses the measured pressure.
+
+    (b) Reference specific humidity: when no slow-response RH sensor
+        exists, MATLAB derives q_ref from the IRGA H2O density channel.
+        Python was falling back to the constant info.qRef value instead.
+        Fix: added elif "irgaH2O" in sensor_info branch to compute
+        q_ref from the IRGA.
+
+
+11. Correlation matrix (R) column order wrong for CO2_WPL pairs
+    File: utespac/fluxes.py
+    ----------------------------------------------------------------
+    Bug: The pair-correlation columns R_uPFwPF_wPFCO2_WPL and
+         R_wPFCO2_WPL_wPFThetav (indices c_R+3, c_R+4) and the
+         individual correlations R_wPF_CO2, R_wPF_CO2_WPL
+         (indices c_R+6, c_R+7) were swapped relative to the MATLAB
+         column order, causing all CO2_WPL correlation values to appear
+         in the wrong output columns.
+    Fix: Reordered the R matrix column assignments to match MATLAB.
+
+
+12. All output matrix headers were empty strings
+    File: utespac/fluxes.py
+    ----------------------------------------------------------------
+    Bug: The Python port did not populate header lists for any of the
+         17 output matrices (sigma, H, Hlat, tau, tke, R, L, eta,
+         delta_flux_ctrb, delta_time_ctrb, turbtr, epsilon, skew,
+         H_SNSP, Flux_lat, LHflux, CO2flux). All header fields were
+         empty strings, making it impossible to identify output columns
+         by name.
+    Fix: Implemented full MATLAB-matching header string generation for
+         all 17 matrices, including preserving the "skew_Theata_v" typo
+         present in the original MATLAB headers.
