@@ -200,9 +200,17 @@ def fluxes(
     rho_v_avg        = 1000.0 * P_v_avg / (Rv * T_ref_K_avg)
     rho_avg          = rho_d_avg + rho_v_avg
     T_virt_ref_K_avg = T_ref_K_avg * (1.0 + 0.61 * q_ref_avg)
+
+    # Manual zRef override — use when running a single high sonic (e.g. 51.5 m)
+    # but wanting virtual-theta / specificHum computed relative to the lowest
+    # sonic on the full tower (info["zRefLowestSon"]).
+    if info.get("shiftzRef", False):
+        z_ref = float(info["zRefLowestSon"])
+
     print(f"ρ_moist = {np.nanmedian(rho_avg):.3g} kg/m³  "
           f"ρ_dry = {np.nanmedian(rho_d_avg):.3g} kg/m³  "
-          f"T_virt_ref = {np.nanmedian(T_virt_ref_K_avg) - 273.15:.3g} °C")
+          f"T_virt_ref = {np.nanmedian(T_virt_ref_K_avg) - 273.15:.3g} °C  "
+          f"zRef = {z_ref:.2f} m")
 
     # -----------------------------------------------------------------------
     # Allocate output matrices

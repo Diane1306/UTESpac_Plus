@@ -50,6 +50,12 @@ info["calcDissipation"] = False
 info["useTrefHMP"] = True
 info["avgSlowFreq"] = 1   # averaging period to match fast to slow [min]
 
+# Manual zRef override — set True only when running a single high sonic
+# (e.g. siteGill at 51.5 m) but needing virtualTheta / specificHum referenced
+# to the lowest sonic on the full tower rather than the site sonic.
+info["shiftzRef"]     = False
+info["zRefLowestSon"] = 4.42   # [m] override value; only used when shiftzRef=True
+
 # Compute extra statistics for transport efficiencies
 info["storeExtraStats"] = True
 
