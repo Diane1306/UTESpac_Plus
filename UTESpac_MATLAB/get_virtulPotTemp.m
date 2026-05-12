@@ -2,10 +2,10 @@ function [virtualTheta, r, rho_airmoist, rhod, rhov] = get_virtulPotTemp(altitud
     % altitude: station altitude, @ 1980 m for Dolly Tower at FM site
     % level: HMP height
     
-    % if median(Tair, 'omitmissing')<200
-    %     Tair = Tair + 273.15;  % put Tair in K
-    % end
-    % 
+    if median(Tair, 'omitmissing')<200
+        Tair = Tair + 273.15;  % put Tair in K
+    end
+
     % if median(P_air, 'omitmissing')<1000
     %     P_air = P_air.*1000; % put P_air in Pa
     % end
