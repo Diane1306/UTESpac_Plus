@@ -335,7 +335,7 @@ def fluxes(
                                        np.linspace(t.min(), t.max(), len(P_kPa_avg)),
                                        P_kPa_avg)
                     vt_slow, r_slow, *_ = get_virtual_pot_temp(
-                        P_slow * 1000.0, height - z_ref, T1_mat[:, 0], RH1_mat[:, 0])
+                        altitude, height - z_ref, T1_mat[:, 0], RH1_mat[:, 0])
                     vt_avg = simple_avg(np.column_stack([vt_slow, ts1]),
                                         info["avgPer"], return_timestamps=False)
                     virtual_theta_avg_local = vt_avg[:, 0] if vt_avg.shape[1] > 0 else None
