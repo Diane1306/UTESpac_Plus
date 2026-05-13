@@ -18,8 +18,12 @@ if info.PF.recalculateGlobalCoefficients || ~exist([info.rootFolder,filesep,info
     for ii = 2:length(data.spdAndDirHeader)
         z(ii) = sscanf(data.spdAndDirHeader{ii},'%f');
     end
-    z = unique(z); 
-    z = flip(z(2:end)); % modify by Diane 10/17/1024 because height descend in the file
+    z = unique(z);
+    if info.ascending
+        z = z(2:end);
+    else
+        z = flip(z(2:end)); % heights stored high-to-low in file
+    end
     
     % find raw table names
     tableNames = data.tableNames;

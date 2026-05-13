@@ -46,15 +46,8 @@ info["saveCSV"] = False
 # Calculate TKE dissipation rate using structure function (slow)
 info["calcDissipation"] = False
 
-# Use local mean reference temperature from slow sensors (HMP)
-info["useTrefHMP"] = True
-info["avgSlowFreq"] = 1   # averaging period to match fast to slow [min]
-
-# Manual zRef override — set True only when running a single high sonic
-# (e.g. siteGill at 51.5 m) but needing virtualTheta / specificHum referenced
-# to the lowest sonic on the full tower rather than the site sonic.
-info["shiftzRef"]     = False
-info["zRefLowestSon"] = 4.42   # [m] override value; only used when shiftzRef=True
+# useTrefHMP, avgSlowFreq, shiftzRef, zRefLowestSon are now set per-site in
+# <siteFolder>/siteInfo.py so you do not need to change them here between runs.
 
 # Compute extra statistics for transport efficiencies
 info["storeExtraStats"] = True
@@ -65,7 +58,7 @@ info["detrendingFormat"] = "linear"
 # 'local'  – planar fit computed from individual CSV file only
 # 'global' – multi-sector, multi-date-bin PF from all site data
 info["PF"] = {
-    "globalCalculation":              "global",
+    "globalCalculation":              "local",
     "recalculateGlobalCoefficients":  True,
     "avgPer":                         30,
     "globalCalcMaxWind":              12,

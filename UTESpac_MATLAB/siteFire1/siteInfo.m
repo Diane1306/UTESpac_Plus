@@ -26,3 +26,9 @@ info.tableScanFrequency = [20];  %[Hz]
 % be 3 less than the number in the .csv file.  This is because the 4 column date vector is replaced with a Matlab's 
 % single-column serial time.  Also, note that View Pro frequently cuts of column 1 (the year!) of the .csv file. 
 info.tableNumberOfColumns = [15]; % modified by Diane
+
+info.useTrefHMP = true;
+info.avgSlowFreq = 1;
+info.shiftzRef = false;
+info.zRefLowestSon = 4.42;
+info.ascending = true;

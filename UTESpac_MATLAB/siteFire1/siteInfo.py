@@ -9,3 +9,9 @@ angle                = 0.0       # slope angle [deg]
 tableNames           = ["site1_20Hz"]
 tableScanFrequency   = [20]      # [Hz]
 tableNumberOfColumns = [15]
+
+useTrefHMP    = True
+avgSlowFreq   = 1
+shiftzRef     = False
+zRefLowestSon = 4.42
+ascending     = True

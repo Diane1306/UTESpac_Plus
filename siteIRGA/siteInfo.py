@@ -8,3 +8,9 @@ angle                = 8.2  # mean of 20 m radius buffer
 tableNames           = ["FMDOL_20Hz"]  # modified by Diane
 tableScanFrequency   = [20]  # [Hz]
 tableNumberOfColumns = [54]  # modified by Diane
+
+useTrefHMP    = True
+avgSlowFreq   = 1
+shiftzRef     = False
+zRefLowestSon = 4.42
+ascending     = False  # heights stored high → low in input tables

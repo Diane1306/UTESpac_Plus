@@ -120,7 +120,8 @@ def find_global_pf(info: Dict, template: Dict, sensor_info: Dict) -> Dict:
         nums = re.findall(r"[\d.]+", str(h))
         if nums:
             z_vals.append(float(nums[0]))
-    z_vals = sorted(set(z_vals[1:]), reverse=True)  # skip timestamp at index 0
+    ascending = info.get("ascending", True)
+    z_vals = sorted(set(z_vals[1:]), reverse=not ascending)  # skip timestamp at index 0
 
     table_names = data.get("tableNames", [])
     pf_info: Dict = {}

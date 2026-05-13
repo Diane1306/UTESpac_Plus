@@ -27,3 +27,15 @@ info.tableScanFrequency = [10];  %[Hz]
 % be 3 less than the number in the .csv file.  This is because the 4 column date vector is replaced with a Matlab's 
 % single-column serial time.  Also, note that View Pro frequently cuts of column 1 (the year!) of the .csv file. 
 info.tableNumberOfColumns = [19]; % modified by Diane
+
+% use local mean reference temperature from slow sensors (HMP)
+info.useTrefHMP = true;
+info.avgSlowFreq = 1; % averaging period to match fast to slow [min]
+
+% single sonic at 51.5 m; reference T/RH/P to lowest sonic on full tower (4.42 m)
+info.shiftzRef = true;
+info.zRefLowestSon = 4.42;
+
+% enter the height in input data table is ascending (true) or descending (false)
+% when multiple sonic heights exist
+info.ascending = false;

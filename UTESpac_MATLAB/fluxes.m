@@ -188,6 +188,9 @@ try
     rhoAvg = rhodAvg+rhovAvg; % density of moist air (kg/m^3)
     TvirtRef_Kavg = Tref_Kavg .* (1+0.61*qRefavg); % virtual temperature at reference height (K), add by Diane
     % fprintf('Calculated Moist Air Density = %0.03g kg/m^3, Dry Air Density = %0.03g kg/m^3\n',median(rhoAvg, 'omitmissing'),median(rhodAvg, 'omitmissing'))
+    if info.shiftzRef
+        zRef = info.zRefLowestSon; % !!!!!-----*****This is a manual change*****-----!!!!!
+    end
     fprintf('Calculated Moist Air Density = %0.03g kg/m^3, Dry Air Density = %0.03g kg/m^3, Virtual Temp Ref = %0.03g C, zRef is at %0.03g m.\n',...
         median(rhoAvg, 'omitmissing'),median(rhodAvg, 'omitmissing'),median(TvirtRef_Kavg, 'omitmissing')-273.15, zRef)
     

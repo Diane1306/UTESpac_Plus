@@ -31,3 +31,20 @@ tableScanFrequency = [20]
 
 # Number of columns expected in each raw CSV table (before date compression).
 tableNumberOfColumns = [19]
+
+# Use local mean reference temperature from slow sensors (HMP) for virtual temperature.
+useTrefHMP = True
+
+# Averaging period [min] used to match fast (sonic) data to slow (HMP) data.
+avgSlowFreq = 1
+
+# Set True only when running a single high sonic (e.g. siteGill at 51.5 m) but needing
+# virtualTheta / specificHum referenced to the lowest sonic on the full tower.
+shiftzRef = False
+
+# Override zRef value [m]; only used when shiftzRef = True.
+zRefLowestSon = 4.42
+
+# True if sonic heights in the input data table are in ascending order (low → high).
+# Set False if heights are stored high → low (Diane's French Meadows tables).
+ascending = True
