@@ -6,10 +6,10 @@ column-by-column statistical report.
 
 Usage
 -----
-    python3 compare_outputs.py                         # all sites, all modes
-    python3 compare_outputs.py --site siteFire1        # one site
+    python3 compare_outputs.py                         # all sites, GPF only (default)
+    python3 compare_outputs.py --site siteFire1        # one site, GPF only
     python3 compare_outputs.py --site siteFire1 --lpf  # LPF only
-    python3 compare_outputs.py --avg                   # 30-min averaged only
+    python3 compare_outputs.py --avg                   # 30-min averaged only, GPF
     python3 compare_outputs.py --raw                   # 20 Hz raw only
     python3 compare_outputs.py --csv results.csv       # save stats table to CSV
     python3 compare_outputs.py --tol-rel 0.05          # change PASS threshold (default 0.01)
@@ -501,11 +501,14 @@ def main():
                         help="Absolute floor used when ref ≈ 0 (default 1e-9)")
     args = parser.parse_args()
 
+    # Default to GPF when neither --lpf nor --gpf is given (GPF is the mode
+    # used for analyses and AmeriFlux submission).
+    gpf_only = args.gpf or (not args.lpf and not args.gpf)
     pairs = discover_pairs(
         MATLAB_DIR,
         site_filter=args.site,
         lpf_only=args.lpf,
-        gpf_only=args.gpf,
+        gpf_only=gpf_only,
         avg_only=args.avg,
         raw_only=args.raw,
     )
