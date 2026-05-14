@@ -226,4 +226,4 @@ def run_utespac(info: dict = None, tmpl: dict = None,
 
 
 if __name__ == "__main__":
-    run_utespac(info, template)
+    run_utespac(info, template, dates="prompt")
