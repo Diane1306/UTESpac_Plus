@@ -96,7 +96,9 @@ def find_global_pf(info: Dict, template: Dict, sensor_info: Dict) -> Dict:
 
     if not info["PF"]["recalculateGlobalCoefficients"] and os.path.isfile(pf_path):
         with open(pf_path, "rb") as fh:
-            return pickle.load(fh)
+            pf_info = pickle.load(fh)
+        _display_and_confirm_pf(pf_info)
+        return pf_info
 
     print("Finding Global Planar Fit Coefficients (b0, b1, b2)")
 
@@ -323,28 +325,37 @@ def find_global_pf(info: Dict, template: Dict, sensor_info: Dict) -> Dict:
         pickle.dump(pf_info, fh)
     print(f"\nPFinfo saved to {pf_path}")
 
-    # ── display summary ───────────────────────────────────────────────────────
-    print("\nVerify Global Planar Fit Coefficients")
+    _display_and_confirm_pf(pf_info)
+    return pf_info
+
+
+def _display_and_confirm_pf(pf_info: Dict) -> None:
+    """Display PF coefficients and ask the user to confirm before analysis."""
+    print("\nVerify Global Planar Fit Coefficients\n")
     for cm_key, date_dict in pf_info.items():
-        print(f"\n  Sonic height: {cm_key}")
+        if cm_key == "infoString":
+            continue
+        print(f"  Sonic height: {cm_key}")
         for day_key, coef_dict in date_dict.items():
-            d0 = int(day_key.split("_")[1].split("to")[0])
-            d1 = int(day_key.split("to")[1])
-            print(f"    {_matlab_to_datetime(d0).strftime('%Y-%m-%d')} → "
-                  f"{_matlab_to_datetime(d1).strftime('%Y-%m-%d')}")
+            try:
+                d0 = int(day_key.split("_")[1].split("to")[0])
+                d1 = int(day_key.split("to")[1])
+                print(f"    {_matlab_to_datetime(d0).strftime('%Y-%m-%d')} → "
+                      f"{_matlab_to_datetime(d1).strftime('%Y-%m-%d')}")
+            except Exception:
+                print(f"    {day_key}")
             for bin_key, coef in coef_dict.items():
                 b0, b1, b2 = coef[0], coef[1], coef[2]
                 pitch = np.degrees(np.arcsin(-b1 / np.sqrt(1 + b1**2)))
                 roll  = np.degrees(np.arcsin( b2 / np.sqrt(1 + b2**2)))
-                print(f"      {bin_key}: b0={b0:.3g}  b1={b1:.3g}  b2={b2:.3g}"
+                print(f"      {bin_key}:  b0={b0:.3g}  b1={b1:.3g}  b2={b2:.3g}"
                       f"  pitch={pitch:.3g}°  roll={roll:.3g}°")
+        print()
 
-    ok = input("\nIs this correct? (1=yes, 0=no): ").strip()
+    ok = input("Is this correct? (1=yes, 0=no): ").strip()
     if ok != "1":
         raise RuntimeError("PF coefficients rejected by user. Check inputs and rerun.")
 
     ok2 = input("Okay to begin analysis? (1=yes, 0=no): ").strip()
     if ok2 != "1":
         raise RuntimeError("Program stopped by user.")
-
-    return pf_info
