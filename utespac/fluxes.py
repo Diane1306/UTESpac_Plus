@@ -250,7 +250,7 @@ def fluxes(
     Flux_lat   = np.full((N, 1 + num_sonics * num_fl_vars),   np.nan)
     LH_mat     = np.full((N, 1 + num_sonics * num_LH_vars),   np.nan)
     CO2fx_mat  = np.full((N, 1 + num_sonics * num_CO2_vars),  np.nan)
-    num_qc_vars = 4  # TAU, H, LE, FC SSITC flags per sonic
+    num_qc_vars = 8  # TAU, H, LE, FC × (SSITC + SS_ONLY) per sonic
     fluxQC_mat = np.full((N, 1 + num_sonics * num_qc_vars),   np.nan)
 
     angle = float(info.get("angle", 0))
@@ -1077,7 +1077,7 @@ def fluxes(
                             raw["rhoCO2Prime"][s0:s1, co2_si]        = rho_CO2p * 1e6
                             raw["rhoCO2extenalPrime"][s0:s1, co2_si] = rhoc_ext * 1e6
 
-                # ---- EddyPro-like SSITC quality flags ----
+                # ---- SSITC + SS-only quality flags (ForestComplexTerrain) ----
                 ustar_jj = (np.sqrt(tau_mat[jj, c_tau + 1])
                             if not np.isnan(tau_mat[jj, c_tau + 1])
                             and tau_mat[jj, c_tau + 1] >= 0 else np.nan)
@@ -1085,19 +1085,26 @@ def fluxes(
                 _rhov = rhov_ext if h2o_data is not None else None
                 _co2p = rho_CO2p if (h2o_data is not None and co2_data is not None) else None
                 _rhoc = rhoc_ext if (h2o_data is not None and co2_data is not None) else None
-                tau_f, H_f, LE_f, FC_f = calc_ssitc_flags(
+                (tau_ssitc, tau_ss, H_ssitc, H_ss,
+                 LE_ssitc,  LE_ss,  FC_ssitc, FC_ss) = calc_ssitc_flags(
                     wPF_P, uPF_P, vPF_P, ThvP,
                     _H2Op, _rhov, _co2p, _rhoc,
                     ustar_jj, L_mat[jj, 1 + ii],
                     bool(rot_flag[jj]), bool(Ts_flag[jj]),
                     bool(h2o_flag[jj]), bool(co2_flag[jj]),
                     n_sub, height, d_ht,
+                    canopy_height=float(info.get("canopyHeight", np.nan)),
+                    use_canopy_itc=bool(info.get("useCanopyITC", True)),
                 )
                 c_qc = 1 + ii * num_qc_vars
-                fluxQC_mat[jj, c_qc]     = tau_f
-                fluxQC_mat[jj, c_qc + 1] = H_f
-                fluxQC_mat[jj, c_qc + 2] = LE_f
-                fluxQC_mat[jj, c_qc + 3] = FC_f
+                fluxQC_mat[jj, c_qc]     = tau_ssitc
+                fluxQC_mat[jj, c_qc + 1] = tau_ss
+                fluxQC_mat[jj, c_qc + 2] = H_ssitc
+                fluxQC_mat[jj, c_qc + 3] = H_ss
+                fluxQC_mat[jj, c_qc + 4] = LE_ssitc
+                fluxQC_mat[jj, c_qc + 5] = LE_ss
+                fluxQC_mat[jj, c_qc + 6] = FC_ssitc
+                fluxQC_mat[jj, c_qc + 7] = FC_ss
 
         except Exception as exc:
             import warnings
@@ -1315,8 +1322,10 @@ def fluxes(
     for h in sonic_heights:
         hn = _h(h)
         qc_hdr += [
-            f"{hn}m:TAU_SSITC_TEST", f"{hn}m:H_SSITC_TEST",
-            f"{hn}m:LE_SSITC_TEST",  f"{hn}m:FC_SSITC_TEST",
+            f"{hn}m:TAU_SSITC_TEST", f"{hn}m:TAU_SS_ONLY_TEST",
+            f"{hn}m:H_SSITC_TEST",   f"{hn}m:H_SS_ONLY_TEST",
+            f"{hn}m:LE_SSITC_TEST",  f"{hn}m:LE_SS_ONLY_TEST",
+            f"{hn}m:FC_SSITC_TEST",  f"{hn}m:FC_SS_ONLY_TEST",
         ]
     output["fluxQC"],   output["fluxQCHeader"]   = _trim_both(fluxQC_mat, qc_hdr)
 

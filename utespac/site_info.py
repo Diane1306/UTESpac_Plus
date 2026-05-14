@@ -54,3 +54,11 @@ SSITC_subAvgMin = 5
 
 # Zero-plane displacement height [m] for SSITC stability parameter z/L.
 displacementHeight = 0
+
+# Canopy height [m]; used by the Rannik et al. in-canopy σ_w/u* ITC model.
+# Set to float('nan') to disable the canopy branch.
+canopyHeight = float('nan')
+
+# If True and z ≤ canopyHeight, use the Rannik et al. canopy ITC model instead of
+# the Foken above-canopy parameterization.
+useCanopyITC = True
