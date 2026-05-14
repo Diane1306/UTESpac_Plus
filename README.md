@@ -22,13 +22,13 @@ python3 utespac_main.py
 ## Validation test suite
 
 Runs the pipeline on `siteFire1` and compares output against the MATLAB reference files in
-`UTESpac_MATLAB/siteFire1/output/`.
+`UTESpac_MATLAB/siteFire1/output/`.  Defaults to GPF mode (the mode used for analyses and
+AmeriFlux submission).
 
 ```bash
-python3 run_test.py              # LPF + GPF
+python3 run_test.py              # GPF averaged + raw (default)
 python3 run_test.py --lpf        # local planar fit only
-python3 run_test.py --gpf        # global planar fit only
-python3 run_test.py --compare    # compare existing .pkl output without re-running
+python3 run_test.py --compare    # compare existing GPF .pkl output without re-running
 ```
 
 ---
@@ -62,49 +62,32 @@ arrays (`{'name'}`), and preserves inline `%` comments as `#` comments.
 
 ---
 
-### Compare Python vs MATLAB outputs
+### Generate AmeriFlux BASE data
 
-After running both the MATLAB pipeline (producing `.mat` files) and the Python pipeline
-(producing `.pkl` files) for any site under `UTESpac_MATLAB/`, run this script to get a
-field-by-field, column-by-column statistical comparison.  Run from the `UTESpac_Python/`
-directory.
+`generate_ameriflux.py` loads GPF `.pkl` output files from `siteIRGA` and `siteGill`,
+aggregates slow meteorology and radiation from the FM_DOL 1-min data files, and writes a
+half-hourly AmeriFlux BASE CSV.  Edit the path constants at the top of the script before
+running.
 
 ```bash
-# Compare all sites, all modes (LPF + GPF, averaged + raw)
-python3 compare_outputs.py
-
-# Limit to one site
-python3 compare_outputs.py --site siteFire1
-
-# LPF or GPF only
-python3 compare_outputs.py --site siteFire1 --lpf
-python3 compare_outputs.py --site siteFire1 --gpf
-
-# 30-min averaged output only
-python3 compare_outputs.py --avg
-
-# 20 Hz raw output only
-python3 compare_outputs.py --raw
-
-# Save the full stats table to a CSV file
-python3 compare_outputs.py --csv results.csv
-
-# Change the OK/WARN threshold (default is 1 %)
-python3 compare_outputs.py --tol-rel 0.05
+python3 generate_ameriflux.py
 ```
 
-Each row in the output table covers one numeric column and reports:
+The output CSV is written to `ameriflux_output/` and follows the
+[AmeriFlux BASE format](https://ameriflux.lbl.gov/half-hourly-hourly-data-upload-format/):
+comma-delimited, `TIMESTAMP_START` / `TIMESTAMP_END` in `YYYYMMDDHHMM` local standard time,
+missing values as `-9999`.
 
-| Statistic | Meaning |
+Variables included:
+
+| Group | Variables |
 |---|---|
-| `N_valid` | Non-NaN pairs compared |
-| `NaN_mm` | Positions where one side is NaN and the other is not |
-| `bias` | mean(Python − MATLAB) |
-| `RMSE` | Root-mean-square error |
-| `max_abs` / `mean_abs` | Absolute error extremes |
-| `p95_abs` / `p99_abs` | Percentile absolute errors |
-| `max_rel` / `mean_rel` | Relative errors |
-| `R²` | Squared correlation |
+| Turbulent fluxes | `H`, `LE`, `FC`, `TAU`, `USTAR` (×5 EC heights) |
+| Wind | `WS`, `WD` (×5 heights) |
+| Stability | `MO_LENGTH`, `ZL`, `TKE` (×5 heights) |
+| Sonic temperature | `T_SONIC`, `T_SONIC_SIGMA` (×5 heights) |
+| Gas scalars | `CO2`, `CO2_SIGMA`*, `H2O`*, `H2O_SIGMA`*, `FH2O` (×5 heights) |
+| Slow met | `TA`, `RH`, `VPD` (×4 HMP heights), `PA` |
+| Radiation | `SW_IN`, `SW_OUT`, `LW_IN`, `LW_OUT`, `NETRAD`, `ALB` (×2 rad heights) |
 
-Status flags: `OK` (max\_rel < tol\_rel), `WARN` (1–10 %), `BIG` (> 10 %),
-`MISS_PY` / `MISS_REF` (field absent from one side), `SKIP` (all NaN).
+\* Requires UTESpac output to include `specificHum` (re-run after updating `fluxes.py`).
