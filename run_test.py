@@ -1,10 +1,10 @@
-"""Non-interactive test runner for siteFire1 — LPF and GPF modes.
+"""Non-interactive test runner for siteFire1 — GPF mode by default.
 
 Usage:
-    python3 run_test.py          # runs LPF, then GPF, then compares to reference
+    python3 run_test.py          # GPF only (the mode used for analyses and AmeriFlux)
+    python3 run_test.py --gpf    # GPF only (explicit)
     python3 run_test.py --lpf    # LPF only
-    python3 run_test.py --gpf    # GPF only
-    python3 run_test.py --compare # compare existing .pkl output to reference .mat
+    python3 run_test.py --compare # compare existing GPF .pkl output to reference .mat
 """
 
 import os, sys, copy, pickle, warnings
@@ -548,21 +548,25 @@ def compare_all_fields(py_output, ref_path, label, tol_abs_floor=1e-10):
 # ── main ─────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    mode_lpf     = "--lpf"    in sys.argv or len(sys.argv) == 1
     mode_gpf     = "--gpf"    in sys.argv or len(sys.argv) == 1
+    mode_lpf     = "--lpf"    in sys.argv
     site2_only   = "--site2"  in sys.argv
     compare_only = "--compare" in sys.argv
 
     if compare_only:
         out_dir = os.path.join(SITE_PATH, "output")
-        lpf_pkls = sorted(f for f in os.listdir(out_dir) if "LPF" in f and f.endswith(".pkl"))
-        gpf_pkls = sorted(f for f in os.listdir(out_dir) if "GPF" in f and f.endswith(".pkl"))
-        if lpf_pkls:
-            with open(os.path.join(out_dir, lpf_pkls[-1]), "rb") as fh:
-                run_comparison(pickle.load(fh), REF_LPF, "LPF")
+        gpf_pkls = sorted(f for f in os.listdir(out_dir) if "GPF" in f and f.endswith(".pkl")
+                          and "raw" not in f)
+        gpf_raw_pkls = sorted(f for f in os.listdir(out_dir) if "GPF" in f and f.endswith(".pkl")
+                               and "raw" in f)
         if gpf_pkls:
             with open(os.path.join(out_dir, gpf_pkls[-1]), "rb") as fh:
-                run_comparison(pickle.load(fh), REF_GPF, "GPF")
+                gpf_out = pickle.load(fh)
+            run_comparison(gpf_out, REF_GPF, "GPF")
+        if gpf_raw_pkls:
+            with open(os.path.join(out_dir, gpf_raw_pkls[-1]), "rb") as fh:
+                gpf_raw = pickle.load(fh)
+            compare_raw(gpf_raw, REF_RAW_GPF, "GPF")
         sys.exit(0)
 
     # ── siteFire1 ────────────────────────────────────────────────────────────
@@ -580,11 +584,11 @@ if __name__ == "__main__":
     # ── siteFire2 ────────────────────────────────────────────────────────────
     if site2_only or "--site2" in sys.argv or "--all" in sys.argv:
         lpf2_out = gpf2_out = lpf2_raw = gpf2_raw = None
-        if mode_lpf or site2_only:
-            lpf2_out, lpf2_raw = run_pipeline2("local")
-            compare_all_fields(lpf2_out, REF2_LPF, "siteFire2 LPF")
-            compare_raw(lpf2_raw, REF2_RAW_LPF, "siteFire2 LPF")
         if mode_gpf or site2_only:
             gpf2_out, gpf2_raw = run_pipeline2("global")
             compare_all_fields(gpf2_out, REF2_GPF, "siteFire2 GPF")
             compare_raw(gpf2_raw, REF2_RAW_GPF, "siteFire2 GPF")
+        if mode_lpf:
+            lpf2_out, lpf2_raw = run_pipeline2("local")
+            compare_all_fields(lpf2_out, REF2_LPF, "siteFire2 LPF")
+            compare_raw(lpf2_raw, REF2_RAW_LPF, "siteFire2 LPF")
