@@ -29,7 +29,7 @@ ROOT_1MIN = ("/Users/diane_wt/Library/CloudStorage/Box-Box/Lab Library/"
              "French Meadows/Summer2025/data/processed/FM_DOL_1min")
 OUT_DIR   = os.path.join(ROOT_PY, "ameriflux_output")
 
-PF_TYPE   = "LPF"   # "LPF" or "GPF"
+PF_TYPE   = "GPF"   # "LPF" or "GPF"
 AVG_PER   = 30      # minutes
 MISSING   = -9999.0
 
