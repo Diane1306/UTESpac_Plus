@@ -3,13 +3,8 @@
 import numpy as np
 
 
-def get_virtual_pot_temp(altitude, level, Tair, RH):
+def get_virtual_pot_temp(altitude, level, Tair, RH, P_air=None, use_p_elevation=True):
     """Compute virtual potential temperature and air densities.
-
-    Matches MATLAB get_virtulPotTemp: pressure is computed from the
-    hypsometric formula using site elevation + sensor height rather than
-    from a measured barometer, so the result is independent of barometer
-    availability.
 
     Parameters
     ----------
@@ -21,6 +16,15 @@ def get_virtual_pot_temp(altitude, level, Tair, RH):
         Air temperature [°C or K – auto-detected].
     RH : array_like
         Relative humidity [%].
+    P_air : array_like or None
+        Measured (or reference) pressure.  Only used when
+        ``use_p_elevation=False``.  Values < 1000 are assumed to be in kPa
+        and are converted to Pa automatically.
+    use_p_elevation : bool
+        If True (default), ignore ``P_air`` and compute pressure from the
+        hypsometric formula using site elevation + sensor height.
+        If False, use the supplied ``P_air`` value (matches MATLAB behaviour
+        when a barometer is passed to get_virtulPotTemp with usePelevation=false).
 
     Returns
     -------
@@ -36,8 +40,13 @@ def get_virtual_pot_temp(altitude, level, Tair, RH):
     if np.nanmedian(Tair) < 200:
         Tair = Tair + 273.15          # → K
 
-    # Pressure from hypsometric formula [Pa] — matches MATLAB
-    P_air = 101325.0 * (1.0 - 2.25577e-5 * (altitude + level)) ** 5.25588
+    if use_p_elevation or P_air is None:
+        # Pressure from hypsometric formula [Pa]
+        P_air = 101325.0 * (1.0 - 2.25577e-5 * (altitude + level)) ** 5.25588
+    else:
+        P_air = np.asarray(P_air, dtype=float)
+        if np.nanmedian(P_air) < 1000:   # kPa → Pa
+            P_air = P_air * 1000.0
 
     # Saturated vapour pressure [Pa]
     e_sat = 1000.0 * np.exp(52.57633 - 6790.4985 / Tair - 5.02808 * np.log(Tair))

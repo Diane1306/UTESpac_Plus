@@ -315,9 +315,9 @@ def fluxes(
                 u_tilt = v_tilt = w_tilt = np.full(len(t), np.nan)
 
             # ---- derived temperatures ----
-            Gamma         = 0.0098
-            theta_son     = T_son + Gamma * (height - z_ref)
-            theta_son_air = (T_son + 273.15) / (1.0 + 0.61 * q_ref_fast) - 273.15
+            Gamma     = 0.0098
+            theta_son = T_son + Gamma * (height - z_ref)
+            # theta_son_air is computed after q_ref_fast_local is set (uses level-specific q)
 
             # ---- level-specific humidity (useTrefHMP path) ----
             q_ref_fast_local = q_ref_fast.copy()
@@ -343,10 +343,14 @@ def fluxes(
                                        np.linspace(t.min(), t.max(), len(P_kPa_avg)),
                                        P_kPa_avg)
                     vt_slow, r_slow, *_ = get_virtual_pot_temp(
-                        altitude, height - z_ref, T1_mat[:, 0], RH1_mat[:, 0])
+                        altitude, height - z_ref, T1_mat[:, 0], RH1_mat[:, 0],
+                        P_slow, use_p_elevation=False)
                     vt_avg = simple_avg(np.column_stack([vt_slow, ts1]),
                                         info["avgPer"], return_timestamps=False)
                     virtual_theta_avg_local = vt_avg[:, 0] if vt_avg.shape[1] > 0 else None
+
+            # Use level-specific q for sonic air temperature (matches MATLAB qRefFastLocal)
+            theta_son_air = (T_son + 273.15) / (1.0 + 0.61 * q_ref_fast_local) - 273.15
 
             # ---- fw sensor at this height ----
             fw_data  = None
