@@ -334,6 +334,8 @@ def fluxes(
                     RH_lev = data[RH_tbl2][:, RH_col2]
                     T_lev  = data[T_tbl2][:, T_col2]
                     t_lev  = data[RH_tbl2][:, 0]
+
+                    # slow-freq averages for virtual theta computation
                     T1_mat  = simple_avg(np.column_stack([T_lev, t_lev]),
                                         freq_slow, return_timestamps=True)
                     RH1_mat = simple_avg(np.column_stack([RH_lev, t_lev]),
@@ -342,12 +344,69 @@ def fluxes(
                     P_slow = np.interp(ts1,
                                        np.linspace(t.min(), t.max(), len(P_kPa_avg)),
                                        P_kPa_avg)
-                    vt_slow, r_slow, *_ = get_virtual_pot_temp(
-                        altitude, height - z_ref, T1_mat[:, 0], RH1_mat[:, 0],
-                        P_slow, use_p_elevation=False)
-                    vt_avg = simple_avg(np.column_stack([vt_slow, ts1]),
-                                        info["avgPer"], return_timestamps=False)
-                    virtual_theta_avg_local = vt_avg[:, 0] if vt_avg.shape[1] > 0 else None
+                    vt_slow, r_slow, rho_moist_slow, rho_dry_slow, rho_H2O_slow = \
+                        get_virtual_pot_temp(altitude, height - z_ref,
+                                             T1_mat[:, 0], RH1_mat[:, 0],
+                                             P_slow, use_p_elevation=False)
+
+                    # average all slow-freq outputs to 30-min
+                    def _avg30(arr):
+                        m = simple_avg(np.column_stack([arr, ts1]),
+                                       info["avgPer"], return_timestamps=False)
+                        return m[:, 0] if m.shape[1] > 0 else np.full(N, np.nan)
+
+                    vt_avg30        = _avg30(vt_slow)
+                    r_avg30         = _avg30(r_slow)
+                    rho_moist_avg30 = _avg30(rho_moist_slow)
+                    rho_dry_avg30   = _avg30(rho_dry_slow)
+                    rho_H2O_avg30   = _avg30(rho_H2O_slow)
+                    virtual_theta_avg_local = vt_avg30
+
+                    # 30-min q from HMP at this level → q_ref_fast_local (matches MATLAB)
+                    T_avg_30_mat  = simple_avg(np.column_stack([T_lev, t_lev]),
+                                               info["avgPer"], return_timestamps=True)
+                    RH_avg_30_mat = simple_avg(np.column_stack([RH_lev, t_lev]),
+                                               info["avgPer"], return_timestamps=True)
+                    T_avg_30_K = T_avg_30_mat[:, 0].copy()
+                    if np.nanmedian(T_avg_30_K) < 200:
+                        T_avg_30_K = T_avg_30_K + 273.15
+                    q_avg_30 = rh_to_spec_hum(RH_avg_30_mat[:, 0], P_kPa_avg,
+                                              T_avg_30_K)  # kg/kg, 30-min
+                    valid_q = ~np.isnan(q_avg_30)
+                    if valid_q.any():
+                        t_q = RH_avg_30_mat[:, -1]
+                        x_q = np.concatenate([[np.floor(t_q[valid_q][0])], t_q[valid_q]])
+                        y_q = np.concatenate([[q_avg_30[valid_q][0]], q_avg_30[valid_q]])
+                        q_ref_fast_local = np.interp(t, x_q, y_q)
+
+                    # --- store in output["specificHum"] ---
+                    def _pad(arr):
+                        if len(arr) >= N:
+                            return arr[:N]
+                        return np.concatenate([arr, np.full(N - len(arr), np.nan)])
+
+                    if "specificHum" not in output:
+                        t_bp = np.array([t[min(bp[jj + 1] - 1, len(t) - 1)]
+                                         for jj in range(N)])
+                        output["specificHum"]       = t_bp.reshape(-1, 1)
+                        output["specificHumHeader"] = ["time"]
+
+                    q_col = _pad(q_avg_30 * 1000.0) if valid_q.any() else _pad(q_avg_30)
+                    q_hdr = f"{height} m: q(g/kg)" if valid_q.any() else f"{height} m: q(g/g)"
+                    nrows = output["specificHum"].shape[0]
+                    for col_data, hdr in [
+                        (q_col,                   q_hdr),
+                        (_pad(vt_avg30),           f"{height} m: virtualThetaAvg(K)"),
+                        (_pad(r_avg30),            f"{height} m: rAvg(g/kg)"),
+                        (_pad(rho_moist_avg30),    f"{height} m: rho_airmoistAvg(kg/m^3)"),
+                        (_pad(rho_dry_avg30),      f"{height} m: rho_airdryAvg(kg/m^3)"),
+                        (_pad(rho_H2O_avg30),      f"{height} m: rho_H2OAvg(kg/m^3)"),
+                    ]:
+                        output["specificHum"] = np.column_stack([
+                            output["specificHum"],
+                            np.asarray(col_data)[:nrows].reshape(-1, 1),
+                        ])
+                        output["specificHumHeader"].append(hdr)
 
             # Use level-specific q for sonic air temperature (matches MATLAB qRefFastLocal)
             theta_son_air = (T_son + 273.15) / (1.0 + 0.61 * q_ref_fast_local) - 273.15
