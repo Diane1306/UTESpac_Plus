@@ -64,7 +64,8 @@ def find_files(
             exec(fh.read(), _ns)
         for key in ["sonicOrientation", "sonicManufact", "tower", "siteElevation",
                     "tableNames", "tableScanFrequency", "tableNumberOfColumns", "angle",
-                    "useTrefHMP", "avgSlowFreq", "shiftzRef", "zRefLowestSon", "ascending"]:
+                    "useTrefHMP", "avgSlowFreq", "shiftzRef", "zRefLowestSon", "ascending",
+                    "SSITC_subAvgMin", "displacementHeight"]:
             if key in _ns:
                 info[key] = _ns[key]
     else:

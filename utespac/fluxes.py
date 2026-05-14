@@ -13,6 +13,7 @@ from .calc_snsp_angle import calc_snsp_angle
 from .find_delta_flux import find_delta_flux
 from .find_delta_time import find_delta_time
 from .find_eta import find_eta
+from .calc_ssitc_flags import calc_ssitc_flags
 
 Rd = 287.058   # J/(kg·K)
 Rv = 461.495   # J/(kg·K)
@@ -249,6 +250,8 @@ def fluxes(
     Flux_lat   = np.full((N, 1 + num_sonics * num_fl_vars),   np.nan)
     LH_mat     = np.full((N, 1 + num_sonics * num_LH_vars),   np.nan)
     CO2fx_mat  = np.full((N, 1 + num_sonics * num_CO2_vars),  np.nan)
+    num_qc_vars = 4  # TAU, H, LE, FC SSITC flags per sonic
+    fluxQC_mat = np.full((N, 1 + num_sonics * num_qc_vars),   np.nan)
 
     angle = float(info.get("angle", 0))
 
@@ -625,7 +628,9 @@ def fluxes(
             # =================================================================
             # Per-averaging-period loop
             # =================================================================
-            det = info.get("detrendingFormat", "linear")
+            det   = info.get("detrendingFormat", "linear")
+            n_sub = info["avgPer"] // info.get("SSITC_subAvgMin", 5)
+            d_ht  = float(info.get("displacementHeight", 0.0))
 
             for jj in range(N):
                 s0, s1 = bp[jj], bp[jj + 1]
@@ -641,7 +646,7 @@ def fluxes(
                     eta_mat[jj, 0]  = df_mat[jj, 0]   = dt_mat[jj, 0]  = ts_jj
                     turbtr_mat[jj, 0] = eps_mat[jj, 0] = skew_mat[jj, 0] = ts_jj
                     H_snsp[jj, 0]   = Flux_lat[jj, 0] = LH_mat[jj, 0]  = ts_jj
-                    CO2fx_mat[jj, 0] = Hlat_mat[jj, 0]                  = ts_jj
+                    CO2fx_mat[jj, 0] = Hlat_mat[jj, 0] = fluxQC_mat[jj, 0] = ts_jj
                     # rho and cp in H columns 1,2 only (not in tke — matches MATLAB)
                     H_mat[jj, 1] = rho_avg[jj]        if jj < len(rho_avg)   else np.nan
                     H_mat[jj, 2] = 1004.67 * (1 + 0.84 * q_ref_avg[jj]) \
@@ -1072,6 +1077,28 @@ def fluxes(
                             raw["rhoCO2Prime"][s0:s1, co2_si]        = rho_CO2p * 1e6
                             raw["rhoCO2extenalPrime"][s0:s1, co2_si] = rhoc_ext * 1e6
 
+                # ---- EddyPro-like SSITC quality flags ----
+                ustar_jj = (np.sqrt(tau_mat[jj, c_tau + 1])
+                            if not np.isnan(tau_mat[jj, c_tau + 1])
+                            and tau_mat[jj, c_tau + 1] >= 0 else np.nan)
+                _H2Op = H2Op     if h2o_data is not None else None
+                _rhov = rhov_ext if h2o_data is not None else None
+                _co2p = rho_CO2p if (h2o_data is not None and co2_data is not None) else None
+                _rhoc = rhoc_ext if (h2o_data is not None and co2_data is not None) else None
+                tau_f, H_f, LE_f, FC_f = calc_ssitc_flags(
+                    wPF_P, uPF_P, vPF_P, ThvP,
+                    _H2Op, _rhov, _co2p, _rhoc,
+                    ustar_jj, L_mat[jj, 1 + ii],
+                    bool(rot_flag[jj]), bool(Ts_flag[jj]),
+                    bool(h2o_flag[jj]), bool(co2_flag[jj]),
+                    n_sub, height, d_ht,
+                )
+                c_qc = 1 + ii * num_qc_vars
+                fluxQC_mat[jj, c_qc]     = tau_f
+                fluxQC_mat[jj, c_qc + 1] = H_f
+                fluxQC_mat[jj, c_qc + 2] = LE_f
+                fluxQC_mat[jj, c_qc + 3] = FC_f
+
         except Exception as exc:
             import warnings
             warnings.warn(f"Flux computation failed at height {height}m: {exc}")
@@ -1283,6 +1310,16 @@ def fluxes(
 
     output["Flux_lat"],  output["Flux_latHeader"] = _trim_both(Flux_lat,  fl_hdr)
     output["LHflux"],    output["LHfluxHeader"]   = _trim_both(LH_mat,    lh_hdr)
+
+    qc_hdr = ["time"]
+    for h in sonic_heights:
+        hn = _h(h)
+        qc_hdr += [
+            f"{hn}m:TAU_SSITC_TEST", f"{hn}m:H_SSITC_TEST",
+            f"{hn}m:LE_SSITC_TEST",  f"{hn}m:FC_SSITC_TEST",
+        ]
+    output["fluxQC"],   output["fluxQCHeader"]   = _trim_both(fluxQC_mat, qc_hdr)
+
     if np.any(~np.isnan(CO2fx_mat[:, 1:])):
         output["CO2flux"],   output["CO2fluxHeader"]  = _trim_both(CO2fx_mat, co2_hdr)
 

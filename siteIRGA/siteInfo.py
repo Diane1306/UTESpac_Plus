@@ -14,3 +14,7 @@ avgSlowFreq   = 1
 shiftzRef     = False
 zRefLowestSon = 4.42
 ascending     = False  # heights stored high → low in input tables
+
+# SSITC quality flag settings
+SSITC_subAvgMin   = 5    # sub-period length [min] for steady-state test
+displacementHeight = 0   # zero-plane displacement height [m]

@@ -48,3 +48,9 @@ zRefLowestSon = 4.42
 # True if sonic heights in the input data table are in ascending order (low → high).
 # Set False if heights are stored high → low (Diane's French Meadows tables).
 ascending = True
+
+# Sub-period length [min] for the SSITC steady-state test.  Must evenly divide avgPer.
+SSITC_subAvgMin = 5
+
+# Zero-plane displacement height [m] for SSITC stability parameter z/L.
+displacementHeight = 0
