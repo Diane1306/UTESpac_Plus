@@ -29,10 +29,12 @@ Status codes:
 
 import os
 import sys
+import io
 import argparse
 import pickle
 import warnings
 import csv as _csv
+from datetime import datetime
 import numpy as np
 import scipy.io as sio
 
@@ -486,6 +488,22 @@ def save_csv(all_rows, path):
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
+LOG_DIR = os.path.join(ROOT_PY, "comparison_logs")
+
+
+class _Tee:
+    """Write to both stdout and a file simultaneously."""
+    def __init__(self, fh):
+        self._fh = fh
+        self._stdout = sys.stdout
+    def write(self, s):
+        self._stdout.write(s)
+        self._fh.write(s)
+    def flush(self):
+        self._stdout.flush()
+        self._fh.flush()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Comprehensive statistical comparison of UTESpac Python vs MATLAB outputs.")
@@ -501,61 +519,75 @@ def main():
                         help="Absolute floor used when ref ≈ 0 (default 1e-9)")
     args = parser.parse_args()
 
-    # Default to GPF when neither --lpf nor --gpf is given (GPF is the mode
-    # used for analyses and AmeriFlux submission).
-    gpf_only = args.gpf or (not args.lpf and not args.gpf)
-    pairs = discover_pairs(
-        MATLAB_DIR,
-        site_filter=args.site,
-        lpf_only=args.lpf,
-        gpf_only=gpf_only,
-        avg_only=args.avg,
-        raw_only=args.raw,
-    )
+    # Auto-generate log file name: comparison_logs/<site>_<YYYYMMDD_HHMMSS>.txt
+    os.makedirs(LOG_DIR, exist_ok=True)
+    site_tag  = args.site if args.site else "all"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_path  = os.path.join(LOG_DIR, f"{site_tag}_{timestamp}.txt")
+    csv_path  = args.csv or os.path.join(LOG_DIR, f"{site_tag}_{timestamp}.csv")
 
-    if not pairs:
-        print("No matched (pkl, mat) pairs found. Check that both pipelines have been run.")
-        sys.exit(1)
+    with open(log_path, "w") as log_fh:
+        sys.stdout = _Tee(log_fh)
 
-    print(f"Found {len(pairs)} matched file pair(s).")
-    all_csv_rows = []
+        # Default to GPF when neither --lpf nor --gpf is given (GPF is the mode
+        # used for analyses and AmeriFlux submission).
+        gpf_only = args.gpf or (not args.lpf and not args.gpf)
+        pairs = discover_pairs(
+            MATLAB_DIR,
+            site_filter=args.site,
+            lpf_only=args.lpf,
+            gpf_only=gpf_only,
+            avg_only=args.avg,
+            raw_only=args.raw,
+        )
 
-    for pair in pairs:
-        site   = pair["site"]
-        stem   = pair["stem"]
-        pf     = pair["pf_mode"]
-        otype  = pair["output_type"]
+        if not pairs:
+            print("No matched (pkl, mat) pairs found. Check that both pipelines have been run.")
+            sys.stdout = sys.stdout._stdout
+            sys.exit(1)
 
-        print(f"\nLoading: {stem}")
-        try:
-            pkl = load_pkl(pair["pkl_path"])
-        except Exception as exc:
-            print(f"  ERROR loading pkl: {exc}")
-            continue
-        try:
-            if otype == "raw":
-                mat_ref = load_mat_raw(pair["mat_path"])
-            else:
-                mat_ref = load_mat_avg(pair["mat_path"])
-        except Exception as exc:
-            print(f"  ERROR loading mat: {exc}")
-            continue
+        print(f"Found {len(pairs)} matched file pair(s).")
+        all_csv_rows = []
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RuntimeWarning)
-            if otype == "raw":
-                rows = compare_raw(pkl, mat_ref, args.tol_rel, args.tol_abs)
-            else:
-                rows = compare_avg(pkl, mat_ref, args.tol_rel, args.tol_abs)
+        for pair in pairs:
+            site   = pair["site"]
+            stem   = pair["stem"]
+            pf     = pair["pf_mode"]
+            otype  = pair["output_type"]
 
-        for r in rows:
-            r.update({"site": site, "pf_mode": pf, "output_type": otype, "stem": stem})
-        all_csv_rows.extend(rows)
+            print(f"\nLoading: {stem}")
+            try:
+                pkl = load_pkl(pair["pkl_path"])
+            except Exception as exc:
+                print(f"  ERROR loading pkl: {exc}")
+                continue
+            try:
+                if otype == "raw":
+                    mat_ref = load_mat_raw(pair["mat_path"])
+                else:
+                    mat_ref = load_mat_avg(pair["mat_path"])
+            except Exception as exc:
+                print(f"  ERROR loading mat: {exc}")
+                continue
 
-        print_table(rows, site, stem, args.tol_rel)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                if otype == "raw":
+                    rows = compare_raw(pkl, mat_ref, args.tol_rel, args.tol_abs)
+                else:
+                    rows = compare_avg(pkl, mat_ref, args.tol_rel, args.tol_abs)
 
-    if args.csv and all_csv_rows:
-        save_csv(all_csv_rows, args.csv)
+            for r in rows:
+                r.update({"site": site, "pf_mode": pf, "output_type": otype, "stem": stem})
+            all_csv_rows.extend(rows)
+
+            print_table(rows, site, stem, args.tol_rel)
+
+        save_csv(all_csv_rows, csv_path)
+        print(f"\nLog saved to:  {log_path}")
+        print(f"CSV saved to:  {csv_path}")
+
+        sys.stdout = sys.stdout._stdout
 
 
 if __name__ == "__main__":
