@@ -32,6 +32,8 @@ OUT_DIR   = os.path.join(ROOT_PY, "ameriflux_output")
 PF_TYPE   = "GPF"   # "LPF" or "GPF"
 AVG_PER   = 30      # minutes
 MISSING   = -9999.0
+GAMMA     = 0.0098  # dry adiabatic lapse rate [K/m]
+Z_REF     = 4.42    # reference height [m] used in UTESpac for both sites
 
 # EC heights in ascending order (V=1 = lowest); matched to site output
 IRGA_HEIGHTS = [4.42, 6.35, 13.94, 32.18]   # siteIRGA
@@ -234,9 +236,6 @@ for v_idx, height in enumerate(EC_HEIGHTS, start=1):
     tau_pf   = _col("tau", "tauHeader", f"{hn}m :sqrt(uPF'wPF'^2+vPF'wPF'^2)")
     df[f"USTAR_1_{v_idx}_1"] = np.sqrt(np.abs(tau_pf)) * np.sign(tau_pf)
 
-    # ---- TAU: momentum flux [kg m⁻¹ s⁻²] ----
-    df[f"TAU_1_{v_idx}_1"] = rho_col * tau_pf
-
     # ---- WS: mean streamwise wind speed [m s⁻¹] after PF + yaw rotation ----
     # rotatedSonic stores 30-min mean of (PF+yaw)-rotated u; mean(vPF)≈0 by yaw
     ws_pf = _col("rotatedSonic", "rotatedSonicHeader", f"{hn}m:u")
@@ -256,9 +255,10 @@ for v_idx, height in enumerate(EC_HEIGHTS, start=1):
     sw = _col("sigma", "sigmaHeader", f"{hn}m :sigma_wPF")
     df[f"TKE_1_{v_idx}_1"] = 0.5 * (su**2 + sv**2 + sw**2)
 
-    # ---- T_SONIC: sonic air temperature [°C] — stored in °C in derivedT ----
-    tson = _col("derivedT", "derivedTheader", f"{height} m: T_son_air")
-    df[f"T_SONIC_1_{v_idx}_1"] = tson
+    # ---- T_SONIC: raw sonic temperature [°C] ----
+    # theta_v_son = T_son + Gamma*(height - zRef), so invert to recover T_son
+    theta_v = _col("derivedT", "derivedTheader", f"{height} m: theta_v_son")
+    df[f"T_SONIC_1_{v_idx}_1"] = theta_v - GAMMA * (height - Z_REF)
 
     # ---- CO2: mean CO2 mole fraction [µmol mol⁻¹] (total, not dry) ----
     co2_ppm = _col("CO2flux", "CO2fluxHeader", f"{hn}m: CO2 (ppm)")
