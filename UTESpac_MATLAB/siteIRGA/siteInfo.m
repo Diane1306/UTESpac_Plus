@@ -37,3 +37,7 @@ info.zRefLowestSon = 4.42;
 % enter the height in input data table is ascending (true) or descending (false)
 % when multiple sonic heights exist
 info.ascending = false;
+
+% for SSITC flags
+info.SSITC_subAvgMin = 5;
+info.displacementHeight = 0;

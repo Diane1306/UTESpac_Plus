@@ -100,7 +100,7 @@ info.detrendingFormat = 'linear';
 % user-defined, multi-sector, multi-datebin coefficients from all site data - the sector and datebins are defined
 % graphically when the code is executed - for 'global' calculations, all data must first be run with a 'local' planar
 % fit and 5-min averaging
-info.PF.globalCalculation = 'local'; % need to check here every time run code
+info.PF.globalCalculation = 'global'; % need to check here every time run code
 
 % recalulate global PF coefficients if 'global' calculation is used
 info.PF.recalculateGlobalCoefficients = false;

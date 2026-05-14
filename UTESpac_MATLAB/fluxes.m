@@ -219,6 +219,10 @@ try
             L = nan(N,1); % Obukhov Length
             sigma = nan(N,1); % standard deviations (u, v, w)
 
+            % initialize EddyPro-like SSITC quality flags
+            numFluxQCVariables = 4;
+            fluxQC = nan(N, 1 + numSonics*numFluxQCVariables);
+
             % initialize correlation coefficient matrices by Diane
             % 2025/08/05
             R = nan(N,1);
@@ -331,6 +335,7 @@ try
             skewHeader = cell(1);
             H_SNSPHeader = cell(1);
             Flux_latHeader = cell(1);
+            fluxQCHeader = cell(1, 1 + numSonics*numFluxQCVariables);
         end
         try
             
@@ -643,6 +648,12 @@ try
             
             %--------------------- ITERATE THROUGH ALL TIME STEPS
             for jj = 1:N
+                % reset optional scalar variables for this averaging period
+                H2Op = [];
+                rhov_externalp = [];
+                rho_CO2p = [];
+                rhoc_externalp = [];
+
                 if ii == 1
                     % place time stamp in column 1
                     H(jj,1) = t(bp(jj+1));
@@ -663,6 +674,7 @@ try
                     skew(jj,1) = t(bp(jj+1));
                     H_SNSP(jj,1) = t(bp(jj+1));
                     Flux_lat(jj,1) = t(bp(jj+1));
+                    fluxQC(jj,1) = t(bp(jj+1));
                     if jj == 1
                         Hheader{1} = 'time';
                         HlatHeader{1} = 'time';
@@ -682,6 +694,7 @@ try
                         skewHeader{1} = 'time';
                         H_SNSPHeader{1} = 'time';
                         Flux_latHeader{1} = 'time';
+                        fluxQCHeader{1} = 'time';
                     end
                 end
                 
@@ -1346,6 +1359,21 @@ try
                     end
                 end
                 
+                % ----- EddyPro-like SSITC quality flags -----
+                if ~exist('H2OFlag','var') || isempty(H2OFlag)
+                    H2OFlag = false(size(rotatedSonFlag));
+                end
+                if ~exist('CO2Flag','var') || isempty(CO2Flag)
+                    CO2Flag = false(size(rotatedSonFlag));
+                end
+                [fluxQC_row_temp, fluxQCHeader] = calc_SSITC_flags_EddyProLike( ...
+                    fluxQC(jj,:), fluxQCHeader, ...
+                    jj, ii, sonHeight, info, ...
+                    wPF_P, uPF_P, vPF_P, Theta_v_sonP, ...
+                    H2Op, rhov_externalp, rho_CO2p, rhoc_externalp, ...
+                    tau, L, ...
+                    rotatedSonFlag, TsonFlag, H2OFlag, CO2Flag);
+                fluxQC(jj,1:numel(fluxQC_row_temp)) = fluxQC_row_temp;
                 
             end
         catch err
@@ -1420,6 +1448,12 @@ try
     flag = logical(any(Flux_lat,1)+isnan(Flux_lat(1,:)));
     output.Flux_lat = Flux_lat(:,flag);
     output.Flux_latHeader = Flux_latHeader(flag);
+
+    if size(fluxQC,2) > 1
+        flag = logical(any(fluxQC,1) + isnan(fluxQC(1,:)));
+        output.fluxQC = fluxQC(:,flag);
+        output.fluxQCHeader = fluxQCHeader(flag);
+    end
     
     if size(derivedT,2) > 1
         flag = logical(any(derivedT,1)+isnan(derivedT(1,:)));

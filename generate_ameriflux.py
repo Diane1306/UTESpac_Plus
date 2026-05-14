@@ -159,6 +159,25 @@ def site_col(site_data, header_key, hdr_key, pattern, t_idx_series):
         out[loc] = col[pos_s] if pos_s < len(col) else np.nan
     return out
 
+# ── pre-extract PA (kPa) for use in EC loop molar density calculations ───────
+
+irga_hdr_raw  = irga.get("FMDOL_20HzHeader", [])
+irga_table_pa = irga.get("FMDOL_20Hz")
+names_row_pa  = irga_hdr_raw[0] if (irga_hdr_raw and isinstance(irga_hdr_raw[0], list)) \
+                else irga_hdr_raw
+pa_col_idx_ec = next((i for i, h in enumerate(names_row_pa)
+                      if "Pressure" in str(h)), None)
+pa_timeseries = np.full(len(t_idx), np.nan)
+if pa_col_idx_ec is not None and irga_table_pa is not None:
+    pa_raw_ec = irga_table_pa[:, pa_col_idx_ec].astype(float)
+    med_ec = np.nanmedian(pa_raw_ec)
+    if med_ec > 50000:
+        pa_raw_ec = pa_raw_ec / 1000.0
+    elif med_ec > 200:
+        pa_raw_ec = pa_raw_ec / 10.0
+    pa_ser_ec = pd.Series(pa_raw_ec, index=pd.DatetimeIndex(irga_dt))
+    pa_timeseries = pa_ser_ec.reindex(t_idx).values.astype(float)
+
 # ── build output DataFrame ────────────────────────────────────────────────────
 
 df = pd.DataFrame(index=t_idx)
@@ -216,6 +235,8 @@ for v_idx, height in enumerate(EC_HEIGHTS, start=1):
                 rho_col[loc] = rho_raw[pos_s]
                 cp_col[loc]  = cp_raw[pos_s]
                 Lv_col[loc]  = lv_raw[loc] * 1000.0  # J/g → J/kg
+        vt_col = np.full(len(t_idx), np.nan)  # not available without specificHum
+        r_col  = np.full(len(t_idx), np.nan)
 
     # ---- H: sensible heat flux [W m⁻²] ----
     thv_wPF  = _col("H",      "Hheader",      f"{hn}m son:Theta_v'wPF'")
@@ -254,6 +275,50 @@ for v_idx, height in enumerate(EC_HEIGHTS, start=1):
     sv = _col("sigma", "sigmaHeader", f"{hn}m :sigma_vPF")
     sw = _col("sigma", "sigmaHeader", f"{hn}m :sigma_wPF")
     df[f"TKE_1_{v_idx}_1"] = 0.5 * (su**2 + sv**2 + sw**2)
+
+    # ---- TAU: Reynolds stress [Pa = kg m⁻¹ s⁻²] ----
+    df[f"TAU_1_{v_idx}_1"] = rho_col * tau_pf
+
+    # ---- Velocity standard deviations [m s⁻¹] ----
+    df[f"U_SIGMA_1_{v_idx}_1"] = su
+    df[f"V_SIGMA_1_{v_idx}_1"] = sv
+    df[f"W_SIGMA_1_{v_idx}_1"] = sw
+
+    # ---- T_SONIC_SIGMA: sonic temperature std dev [°C] ----
+    ts_sig = _col("sigma", "sigmaHeader", f"{hn}m :sigma_Tson")
+    df[f"T_SONIC_SIGMA_1_{v_idx}_1"] = ts_sig
+
+    # ---- ZL: stability parameter z/L [nondimensional] ----
+    with np.errstate(divide="ignore", invalid="ignore"):
+        zl = np.where(np.isfinite(L_col) & (L_col != 0.0),
+                      height / L_col, np.nan)
+    df[f"ZL_1_{v_idx}_1"] = zl
+
+    # ---- FH2O: H2O flux [mmol H2O m⁻² s⁻¹] ----
+    df[f"FH2O_1_{v_idx}_1"] = q_wpl * 1e6 / 18.015
+
+    # ---- H2O: mean mole fraction [mmol H2O mol⁻¹ air] ----
+    # mixing ratio r [g/kg] → mmol/mol; only valid after UTESpac re-run with specificHum fix
+    df[f"H2O_1_{v_idx}_1"] = r_col * 28.97 / 18.015  # NaN when specificHum absent
+
+    # ---- Molar air density for gas-phase sigma conversions ----
+    PA_Pa   = pa_timeseries * 1000.0   # kPa → Pa
+    with np.errstate(divide="ignore", invalid="ignore"):
+        rho_mol = np.where(
+            np.isfinite(PA_Pa) & np.isfinite(vt_col) & (vt_col > 200),
+            PA_Pa / (8.314 * vt_col), np.nan)
+
+    # ---- CO2_SIGMA [µmol CO2 mol⁻¹ air] ----
+    # sigma_CO2 [mg/m³] ÷ 44010 [mg/mol] ÷ rho_mol [mol/m³] × 1e6
+    sig_co2 = _col("sigma", "sigmaHeader", f"{hn}m :sigma_CO2")  # mg/m³
+    with np.errstate(divide="ignore", invalid="ignore"):
+        df[f"CO2_SIGMA_1_{v_idx}_1"] = sig_co2 / (44.01 * 1000.0) / rho_mol * 1e6
+
+    # ---- H2O_SIGMA [mmol H2O mol⁻¹ air] ----
+    # sigma_H2O [g/m³] ÷ 18.015 [g/mol] ÷ rho_mol [mol/m³] × 1e3
+    sig_h2o = _col("sigma", "sigmaHeader", f"{hn}m :sigma_H2O")  # g/m³
+    with np.errstate(divide="ignore", invalid="ignore"):
+        df[f"H2O_SIGMA_1_{v_idx}_1"] = sig_h2o / 18.015 / rho_mol * 1e3
 
     # ---- T_SONIC: raw sonic temperature [°C] ----
     # theta_v_son = T_son + Gamma*(height - zRef), so invert to recover T_son
@@ -320,25 +385,7 @@ if min1_files:
         df[f"VPD_1_{v_idx}_1"] = np.where(np.isfinite(vpd), vpd, np.nan)
 
     # ---- PA from UTESpac averaged table [kPa] ----
-    # FMDOL_20HzHeader is [names_list, heights_list]; search in names_list
-    irga_hdr_raw = irga.get("FMDOL_20HzHeader", [])
-    irga_table   = irga.get("FMDOL_20Hz")
-    names_row    = irga_hdr_raw[0] if (irga_hdr_raw and isinstance(irga_hdr_raw[0], list)) \
-                   else irga_hdr_raw
-    pa_col_idx   = next((i for i, h in enumerate(names_row)
-                         if "Pressure" in str(h)), None)
-    if pa_col_idx is not None and irga_table is not None:
-        pa_raw = irga_table[:, pa_col_idx].astype(float)
-        # Normalise to kPa: Pa→kPa (/1000), mbar→kPa (/10), kPa→kPa (no-op)
-        med = np.nanmedian(pa_raw)
-        if med > 50000:
-            pa_raw /= 1000.0    # Pa → kPa
-        elif med > 200:
-            pa_raw /= 10.0      # mbar → kPa
-        pa_ser = pd.Series(pa_raw, index=pd.DatetimeIndex(irga_dt))
-        df["PA_1_1_1"] = pa_ser.reindex(t_idx).values
-    else:
-        df["PA_1_1_1"] = np.nan
+    df["PA_1_1_1"] = pa_timeseries
 
     # ---- Radiation [W m⁻²] ----
     for v_idx, height in enumerate(RAD_HEIGHTS, start=1):
@@ -348,6 +395,16 @@ if min1_files:
         df[f"LW_IN_1_{v_idx}_1"]   = _met(lw_in)
         df[f"LW_OUT_1_{v_idx}_1"]  = _met(lw_out)
         df[f"NETRAD_1_{v_idx}_1"]  = _met(rn)
+
+    # ---- ALB: albedo [%] from 30-min SW (filter: SW_IN > 5 W/m²) ----
+    for v_idx, height in enumerate(RAD_HEIGHTS, start=1):
+        sw_in_v  = df[f"SW_IN_1_{v_idx}_1"].values.astype(float)
+        sw_out_v = df[f"SW_OUT_1_{v_idx}_1"].values.astype(float)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            alb = np.where(
+                (sw_in_v != MISSING) & (sw_out_v != MISSING) & (sw_in_v > 5.0),
+                100.0 * sw_out_v / sw_in_v, np.nan)
+        df[f"ALB_1_{v_idx}_1"] = alb
 else:
     warnings.warn("No FM_DOL_1min files found — met/radiation columns will be NaN.")
 

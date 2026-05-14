@@ -58,8 +58,8 @@ info["detrendingFormat"] = "linear"
 # 'local'  – planar fit computed from individual CSV file only
 # 'global' – multi-sector, multi-date-bin PF from all site data
 info["PF"] = {
-    "globalCalculation":              "local",
-    "recalculateGlobalCoefficients":  True,
+    "globalCalculation":              "global",
+    "recalculateGlobalCoefficients":  False,
     "avgPer":                         30,
     "globalCalcMaxWind":              12,
     "globalCalcMinWind":              0.5,
