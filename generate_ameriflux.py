@@ -237,11 +237,12 @@ for v_idx, height in enumerate(EC_HEIGHTS, start=1):
     # ---- TAU: momentum flux [kg m⁻¹ s⁻²] ----
     df[f"TAU_1_{v_idx}_1"] = rho_col * tau_pf
 
-    # ---- WS: mean wind speed [m s⁻¹] ----
-    ws = _col("spdAndDir", "spdAndDirHeader", f"{hn}m speed")
-    df[f"WS_1_{v_idx}_1"] = ws
+    # ---- WS: mean streamwise wind speed [m s⁻¹] after PF + yaw rotation ----
+    # rotatedSonic stores 30-min mean of (PF+yaw)-rotated u; mean(vPF)≈0 by yaw
+    ws_pf = _col("rotatedSonic", "rotatedSonicHeader", f"{hn}m:u")
+    df[f"WS_1_{v_idx}_1"] = ws_pf
 
-    # ---- WD: wind direction [°] ----
+    # ---- WD: wind direction [°] — geographic, uses unrotated frame ----
     wd = _col("spdAndDir", "spdAndDirHeader", f"{hn}m direction")
     df[f"WD_1_{v_idx}_1"] = wd
 
@@ -249,9 +250,11 @@ for v_idx, height in enumerate(EC_HEIGHTS, start=1):
     L_col = _col("L", "Lheader", f"{hn}m L:")
     df[f"MO_LENGTH_1_{v_idx}_1"] = L_col
 
-    # ---- TKE [m² s⁻²] ----
-    tke_col = _col("tke", "tkeHeader", f"{hn}m :0.5(u'^2+v'^2+w'^2)")
-    df[f"TKE_1_{v_idx}_1"] = tke_col
+    # ---- TKE [m² s⁻²]: 0.5*(σ_uPF² + σ_vPF² + σ_wPF²) after PF rotation ----
+    su = _col("sigma", "sigmaHeader", f"{hn}m :sigma_uPF")
+    sv = _col("sigma", "sigmaHeader", f"{hn}m :sigma_vPF")
+    sw = _col("sigma", "sigmaHeader", f"{hn}m :sigma_wPF")
+    df[f"TKE_1_{v_idx}_1"] = 0.5 * (su**2 + sv**2 + sw**2)
 
     # ---- T_SONIC: sonic air temperature [°C] — stored in °C in derivedT ----
     tson = _col("derivedT", "derivedTheader", f"{height} m: T_son_air")
