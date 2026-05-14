@@ -38,6 +38,15 @@ info.zRefLowestSon = 4.42;
 % when multiple sonic heights exist
 info.ascending = false;
 
-% for SSITC flags
+% SSITC quality-flagging settings
 info.SSITC_subAvgMin = 5;
+
+% Set this to your best estimate of canopy height.
+info.canopyHeight = 19.3;
+
+% Start with 0 for simplicity.
+% You can later test 0.67*canopyHeight for above-canopy z-d correction.
 info.displacementHeight = 0;
+
+% Use canopy-aware sigma_w/u* ITC model for z <= canopyHeight.
+info.useCanopyITC = true;

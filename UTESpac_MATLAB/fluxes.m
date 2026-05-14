@@ -219,8 +219,8 @@ try
             L = nan(N,1); % Obukhov Length
             sigma = nan(N,1); % standard deviations (u, v, w)
 
-            % initialize EddyPro-like SSITC quality flags
-            numFluxQCVariables = 4;
+            % initialize SSITC and steady-state-only quality flags
+            numFluxQCVariables = 8;
             fluxQC = nan(N, 1 + numSonics*numFluxQCVariables);
 
             % initialize correlation coefficient matrices by Diane
@@ -1359,14 +1359,14 @@ try
                     end
                 end
                 
-                % ----- EddyPro-like SSITC quality flags -----
+                % ----- SSITC and steady-state-only quality flags -----
                 if ~exist('H2OFlag','var') || isempty(H2OFlag)
                     H2OFlag = false(size(rotatedSonFlag));
                 end
                 if ~exist('CO2Flag','var') || isempty(CO2Flag)
                     CO2Flag = false(size(rotatedSonFlag));
                 end
-                [fluxQC_row_temp, fluxQCHeader] = calc_SSITC_flags_EddyProLike( ...
+                [fluxQC_row_temp, fluxQCHeader] = calc_SSITC_flags_ForestComplexTerrain( ...
                     fluxQC(jj,:), fluxQCHeader, ...
                     jj, ii, sonHeight, info, ...
                     wPF_P, uPF_P, vPF_P, Theta_v_sonP, ...
