@@ -65,12 +65,8 @@
 info.UTESpacVersion = '5.0';
 
 % enter root folder where site* folders are located
-c_path = pwd;
-if contains(c_path, 'diane_wt')
-    info.rootFolder = '/Users/diane_wt/Library/CloudStorage/Box-Box/Diane/code/UTESpac_Python/UTESpac_MATLAB';
-elseif contains(c_path, 'admin-dianew68')
-    info.rootFolder = 'C:/Users/admin-dianew68/Box/Diane/code/UTESpac_Python/UTESpac_MATLAB';
-end
+% Auto-detected as the folder containing this script; override if needed.
+info.rootFolder = fileparts(mfilename('fullpath'));
 
 % enter averaging period in minutes.  Must yield an integer when dividied into 60 (e.g. 1, 2, 5, 10, 20, 30)
 info.avgPer = 30;
