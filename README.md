@@ -86,8 +86,12 @@ Variables included:
 | Wind | `WS`, `WD` (×5 heights) |
 | Stability | `MO_LENGTH`, `ZL`, `TKE` (×5 heights) |
 | Sonic temperature | `T_SONIC`, `T_SONIC_SIGMA` (×5 heights) |
-| Gas scalars | `CO2`, `CO2_SIGMA`*, `H2O`*, `H2O_SIGMA`*, `FH2O` (×5 heights) |
+| Gas scalars | `CO2`, `CO2_SIGMA`, `H2O`, `H2O_SIGMA`, `FH2O` (×5 heights) |
+| Velocity variances | `U_SIGMA`, `V_SIGMA`, `W_SIGMA` (×5 heights) |
+| Quality flags | `TAU_SSITC_TEST`, `H_SSITC_TEST`, `LE_SSITC_TEST`, `FC_SSITC_TEST` (×5 heights) |
 | Slow met | `TA`, `RH`, `VPD` (×4 HMP heights), `PA` |
 | Radiation | `SW_IN`, `SW_OUT`, `LW_IN`, `LW_OUT`, `NETRAD`, `ALB` (×2 rad heights) |
 
-\* Requires UTESpac output to include `specificHum` (re-run after updating `fluxes.py`).
+**Note on SSITC flags:** SSITC flags are interpreted as diagnostic indicators of nonstationarity
+and similarity-theory departure, rather than as direct indicators of instrument failure or
+unusable observations over forested complex terrain.

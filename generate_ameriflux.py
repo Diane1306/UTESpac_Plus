@@ -329,6 +329,12 @@ for v_idx, height in enumerate(EC_HEIGHTS, start=1):
     co2_ppm = _col("CO2flux", "CO2fluxHeader", f"{hn}m: CO2 (ppm)")
     df[f"CO2_1_{v_idx}_1"] = co2_ppm
 
+    # ---- SSITC quality flags (0=high, 1=moderate, 2=poor) ----
+    for flag_var in ("TAU", "H", "LE", "FC"):
+        flag_col = site_col(src, "fluxQC", "fluxQCHeader",
+                            f"{hn}m:{flag_var}_SSITC_TEST", hi)
+        df[f"{flag_var}_SSITC_TEST_1_{v_idx}_1"] = flag_col
+
 # ── slow meteorology from 1-min data ─────────────────────────────────────────
 
 print("Loading 1-min met data…")
