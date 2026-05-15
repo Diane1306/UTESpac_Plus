@@ -196,6 +196,10 @@ for v_idx, height in enumerate(EC_HEIGHTS, start=1):
     def _col(arr_key, hdr_key, pattern):
         return site_col(src, arr_key, hdr_key, pattern, hi)
 
+    # ---- wind sector flag (1 = tower-disturbed, 0 = clean) ----
+    wd_flag = _col("spdAndDir", "spdAndDirHeader", f"{hn}m flag")
+    bad_sector = np.isfinite(wd_flag) & (wd_flag != 0)   # True where wind is bad
+
     # ---- density / thermodynamic terms ----
     # Use specificHum (level-specific) when available, else global H[:,1]/[:,2]
     spec_hum_h = f"{height} m: "   # prefix used in specificHum headers
@@ -328,6 +332,23 @@ for v_idx, height in enumerate(EC_HEIGHTS, start=1):
     # ---- CO2: mean CO2 mole fraction [µmol mol⁻¹] (total, not dry) ----
     co2_ppm = _col("CO2flux", "CO2fluxHeader", f"{hn}m: CO2 (ppm)")
     df[f"CO2_1_{v_idx}_1"] = co2_ppm
+
+    # ---- WD_FILTER: tower-obstruction wind direction flag ----
+    # 0 = clean sector, 1 = wind from tower direction (disturbed)
+    df[f"WD_FILTER_1_{v_idx}_1"] = wd_flag.astype(float)
+
+    # ---- Mask wind-disturbed flux periods to NaN (→ -9999 in output) ----
+    # AmeriFlux BASE convention: set knowingly bad data to missing rather than
+    # relying on users to interpret a separate flag column.
+    flux_cols = [
+        f"H_1_{v_idx}_1",    f"LE_1_{v_idx}_1",  f"FC_1_{v_idx}_1",
+        f"USTAR_1_{v_idx}_1", f"TAU_1_{v_idx}_1",
+    ]
+    for col in flux_cols:
+        if col in df.columns:
+            vals = df[col].values.astype(float)
+            vals[bad_sector] = np.nan
+            df[col] = vals
 
     # ---- SSITC quality flags (0=high, 1=moderate, 2=poor) ----
     for flag_var in ("TAU", "H", "LE", "FC"):
