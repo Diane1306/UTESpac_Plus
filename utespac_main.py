@@ -11,7 +11,6 @@ or import and call ``run_utespac(info)`` programmatically.
 """
 
 import os
-import platform
 import warnings
 
 # ---------------------------------------------------------------------------
@@ -20,14 +19,9 @@ import warnings
 
 info: dict = {}
 
-# Root folder containing the site* sub-directories
-_cwd = os.getcwd()
-if "diane_wt" in _cwd:
-    info["rootFolder"] = "/Users/diane_wt/Library/CloudStorage/Box-Box/Diane/code/UTESpac_Python"
-elif "admin-dianew68" in _cwd:
-    info["rootFolder"] = "C:/Users/admin-dianew68/Box/Diane/code/UTESpac_Python"
-else:
-    info["rootFolder"] = _cwd   # fallback: run from the root folder
+# Root folder containing the site* sub-directories.
+# Defaults to the directory containing this script; override if needed.
+info["rootFolder"] = os.path.dirname(os.path.abspath(__file__))
 
 info["UTESpacVersion"] = "5.0-Python"
 
