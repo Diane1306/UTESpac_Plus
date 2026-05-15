@@ -24,9 +24,19 @@ from datetime import datetime, timedelta
 
 SITE_ID   = "US-xFM"   # replace with official AmeriFlux site ID when registered
 
-ROOT_PY   = "/Users/diane_wt/Library/CloudStorage/Box-Box/Diane/code/UTESpac_Python"
-ROOT_1MIN = ("/Users/diane_wt/Library/CloudStorage/Box-Box/Lab Library/"
-             "French Meadows/Summer2025/data/processed/FM_DOL_1min")
+_cwd = os.getcwd()
+if "diane_wt" in _cwd:
+    ROOT_PY   = "/Users/diane_wt/Library/CloudStorage/Box-Box/Diane/code/UTESpac_Python"
+    ROOT_1MIN = ("/Users/diane_wt/Library/CloudStorage/Box-Box/Lab Library/"
+                 "French Meadows/Summer2025/data/processed/FM_DOL_1min")
+elif "admin-dianew68" in _cwd:
+    ROOT_PY   = "C:/Users/admin-dianew68/Box/Diane/code/UTESpac_Python"
+    ROOT_1MIN = ("C:/Users/admin-dianew68/Box/Lab Library/"
+                 "French Meadows/Summer2025/data/processed/FM_DOL_1min")
+else:
+    ROOT_PY   = os.path.dirname(os.path.abspath(__file__))
+    ROOT_1MIN = ""
+
 OUT_DIR   = os.path.join(ROOT_PY, "ameriflux_output")
 
 PF_TYPE   = "GPF"   # "LPF" or "GPF"
