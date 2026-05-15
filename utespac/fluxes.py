@@ -904,9 +904,10 @@ def fluxes(
                         df_mat[jj,  c_df  + 2:c_df  + 4] = np.nan
                         dt_mat[jj,  c_dt  + 2:c_dt  + 4] = np.nan
 
-                    # LHflux
-                    E   = np.nanmean(wP    * H2Op)
-                    EPF = np.nanmean(wPF_P * H2Op)
+                    # LHflux (all-NaN periods produce nan silently)
+                    with np.errstate(all="ignore"):
+                        E   = np.nanmean(wP    * H2Op)
+                        EPF = np.nanmean(wPF_P * H2Op)
                     Lv  = (2.501 - 0.00237 * (T_ref_j - 273.15)) * 1e3
                     kin_sen_flux = H_mat[jj, c_H + 1]
                     wpl = 1.0 + Md / Mv * rho_v_j / rho_d_j
