@@ -287,6 +287,24 @@ def fluxes(
 
             unrot_flag = (_flag(w_col)).astype(bool)
             rot_flag   = (_flag(u_col) | _flag(v_col) | _flag(w_col)).astype(bool)
+
+            # Include averaged sonic diagnostic in flags (matches MATLAB fluxes.m lines 363-381).
+            # Periods where mean(diagnostic) >= meanSonicDiagnosticLimit are flagged bad.
+            if "sonDiagnostic" in sensor_info:
+                diag_rows = sensor_info["sonDiagnostic"][:, 2] == height
+                if diag_rows.any():
+                    d_tbl = int(sensor_info["sonDiagnostic"][diag_rows, 0][0])
+                    d_col = int(sensor_info["sonDiagnostic"][diag_rows, 1][0])
+                    tbl_avg = output.get(table_names[d_tbl])
+                    if tbl_avg is not None and d_col < tbl_avg.shape[1]:
+                        diag_avg = tbl_avg[:, d_col].copy().astype(float)
+                        diag_avg[np.isnan(diag_avg)] = 0.0
+                        limit = info.get("diagnosticTest", {}).get(
+                            "meanSonicDiagnosticLimit", 50)
+                        diag_flag = diag_avg >= limit
+                        unrot_flag = unrot_flag | diag_flag
+                        rot_flag   = rot_flag   | diag_flag
+
             Ts_flag    = np.zeros(N, dtype=bool)
 
             T_son = np.full(len(t), np.nan)
