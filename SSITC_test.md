@@ -211,7 +211,7 @@ H2O_{\mathrm{WPL}}'
 =
 H2O'
 +
-\rho_{v,\mathrm{external}}' \times 10^3
+\rho_{v,\mathrm{external}}'
 ```
 
 The steady-state deviation is:
