@@ -26,27 +26,27 @@ Each averaging period, usually 30 min, is divided into 5-min subperiods.
 
 If the averaging period is:
 
-$begin:math:display$
-T \= 30 \\ \\mathrm\{min\}
-$end:math:display$
+```math
+T = 30 \ \mathrm{min}
+```
 
 and the subperiod length is:
 
-$begin:math:display$
-T\_s \= 5 \\ \\mathrm\{min\}
-$end:math:display$
+```math
+T_s = 5 \ \mathrm{min}
+```
 
 then the number of subperiods is:
 
-$begin:math:display$
-N\_s \= \\frac\{T\}\{T\_s\} \= 6
-$end:math:display$
+```math
+N_s = \frac{T}{T_s} = 6
+```
 
 The code requires:
 
-$begin:math:display$
-\\mathrm\{mod\}\(T\,T\_s\)\=0
-$end:math:display$
+```math
+\mathrm{mod}(T,T_s)=0
+```
 
 ---
 
@@ -56,25 +56,25 @@ $end:math:display$
 
 For a scalar or velocity variable $begin:math:text$x$end:math:text$, the full-period covariance with vertical velocity $begin:math:text$w$end:math:text$ is:
 
-$begin:math:display$
-\\overline\{w\'x\'\} \=
-\\frac\{1\}\{N\}
-\\sum\_\{i\=1\}\^\{N\}
-\\left\(w\_i\-\\overline\{w\}\\right\)
-\\left\(x\_i\-\\overline\{x\}\\right\)
-$end:math:display$
+```math
+\overline{w'x'} =
+\frac{1}{N}
+\sum_{i=1}^{N}
+\left(w_i-\overline{w}\right)
+\left(x_i-\overline{x}\right)
+```
 
 where:
 
-$begin:math:display$
-\\overline\{w\}\=
-\\frac\{1\}\{N\}\\sum\_\{i\=1\}\^\{N\}w\_i
-$end:math:display$
+```math
+\overline{w}=
+\frac{1}{N}\sum_{i=1}^{N}w_i
+```
 
-$begin:math:display$
-\\overline\{x\}\=
-\\frac\{1\}\{N\}\\sum\_\{i\=1\}\^\{N\}x\_i
-$end:math:display$
+```math
+\overline{x}=
+\frac{1}{N}\sum_{i=1}^{N}x_i
+```
 
 The code uses population-style Reynolds averaging, i.e. normalization by $begin:math:text$N$end:math:text$, not $begin:math:text$N\-1$end:math:text$.
 
@@ -84,23 +84,23 @@ The code uses population-style Reynolds averaging, i.e. normalization by $begin:
 
 For each 5-min subperiod $begin:math:text$k$end:math:text$, the covariance is:
 
-$begin:math:display$
-\\overline\{w\'x\'\}\_k \=
-\\frac\{1\}\{N\_k\}
-\\sum\_\{i\=1\}\^\{N\_k\}
-\\left\(w\_\{i\,k\}\-\\overline\{w\}\_k\\right\)
-\\left\(x\_\{i\,k\}\-\\overline\{x\}\_k\\right\)
-$end:math:display$
+```math
+\overline{w'x'}_k =
+\frac{1}{N_k}
+\sum_{i=1}^{N_k}
+\left(w_{i,k}-\overline{w}_k\right)
+\left(x_{i,k}-\overline{x}_k\right)
+```
 
 The mean subperiod covariance is:
 
-$begin:math:display$
-\\left\<\\overline\{w\'x\'\}\_k\\right\>
-\=
-\\frac\{1\}\{N\_s\}
-\\sum\_\{k\=1\}\^\{N\_s\}
-\\overline\{w\'x\'\}\_k
-$end:math:display$
+```math
+\left<\overline{w'x'}_k\right>
+=
+\frac{1}{N_s}
+\sum_{k=1}^{N_s}
+\overline{w'x'}_k
+```
 
 ---
 
@@ -108,20 +108,20 @@ $end:math:display$
 
 The relative steady-state deviation is:
 
-$begin:math:display$
-SS\_\{\\mathrm\{dev\}\}
-\=
-\\left\|
-\\frac\{
-\\left\<\\overline\{w\'x\'\}\_k\\right\>
-\-
-\\overline\{w\'x\'\}
-\}\{
-\\overline\{w\'x\'\}
-\}
-\\right\|
-\\times 100
-$end:math:display$
+```math
+SS_{\mathrm{dev}}
+=
+\left|
+\frac{
+\left<\overline{w'x'}_k\right>
+-
+\overline{w'x'}
+}{
+\overline{w'x'}
+}
+\right|
+\times 100
+```
 
 where:
 
@@ -139,66 +139,66 @@ where:
 
 For momentum, two covariance components are tested:
 
-$begin:math:display$
-SS\_\{\\mathrm\{dev\}\,uw\}
-\=
-\\left\|
-\\frac\{
-\\left\<\\overline\{u\'w\'\}\_k\\right\>
-\-
-\\overline\{u\'w\'\}
-\}\{
-\\overline\{u\'w\'\}
-\}
-\\right\|
-\\times 100
-$end:math:display$
+```math
+SS_{\mathrm{dev},uw}
+=
+\left|
+\frac{
+\left<\overline{u'w'}_k\right>
+-
+\overline{u'w'}
+}{
+\overline{u'w'}
+}
+\right|
+\times 100
+```
 
-$begin:math:display$
-SS\_\{\\mathrm\{dev\}\,vw\}
-\=
-\\left\|
-\\frac\{
-\\left\<\\overline\{v\'w\'\}\_k\\right\>
-\-
-\\overline\{v\'w\'\}
-\}\{
-\\overline\{v\'w\'\}
-\}
-\\right\|
-\\times 100
-$end:math:display$
+```math
+SS_{\mathrm{dev},vw}
+=
+\left|
+\frac{
+\left<\overline{v'w'}_k\right>
+-
+\overline{v'w'}
+}{
+\overline{v'w'}
+}
+\right|
+\times 100
+```
 
 The code uses the worse of the two:
 
-$begin:math:display$
-SS\_\{\\mathrm\{dev\}\,\\tau\}
-\=
-\\max
-\\left\(
-SS\_\{\\mathrm\{dev\}\,uw\}\,
-SS\_\{\\mathrm\{dev\}\,vw\}
-\\right\)
-$end:math:display$
+```math
+SS_{\mathrm{dev},\tau}
+=
+\max
+\left(
+SS_{\mathrm{dev},uw},
+SS_{\mathrm{dev},vw}
+\right)
+```
 
 ---
 
 ## 4.2 Sensible heat flux
 
-$begin:math:display$
-SS\_\{\\mathrm\{dev\}\,H\}
-\=
-\\left\|
-\\frac\{
-\\left\<\\overline\{w\'\\theta\_v\'\}\_k\\right\>
-\-
-\\overline\{w\'\\theta\_v\'\}
-\}\{
-\\overline\{w\'\\theta\_v\'\}
-\}
-\\right\|
-\\times 100
-$end:math:display$
+```math
+SS_{\mathrm{dev},H}
+=
+\left|
+\frac{
+\left<\overline{w'\theta_v'}_k\right>
+-
+\overline{w'\theta_v'}
+}{
+\overline{w'\theta_v'}
+}
+\right|
+\times 100
+```
 
 ---
 
@@ -206,40 +206,40 @@ $end:math:display$
 
 The WPL-corrected water-vapor perturbation is:
 
-$begin:math:display$
-\\rho\_\{v\,\\mathrm\{WPL\}\}\'
-\=
-\\rho\_v\'
-\+
-\\rho\_\{v\,\\mathrm\{external\}\}\'
-$end:math:display$
+```math
+\rho_{v,\mathrm{WPL}}'
+=
+\rho_v'
++
+\rho_{v,\mathrm{external}}'
+```
 
 In the code:
 
-$begin:math:display$
-H2O\_\{\\mathrm\{WPL\}\}\'
-\=
-H2O\'
-\+
-\\rho\_\{v\,\\mathrm\{external\}\}\' \\times 10\^3
-$end:math:display$
+```math
+H2O_{\mathrm{WPL}}'
+=
+H2O'
++
+\rho_{v,\mathrm{external}}' \times 10^3
+```
 
 The steady-state deviation is:
 
-$begin:math:display$
-SS\_\{\\mathrm\{dev\}\,LE\}
-\=
-\\left\|
-\\frac\{
-\\left\<\\overline\{w\'H2O\_\{\\mathrm\{WPL\}\}\'\}\_k\\right\>
-\-
-\\overline\{w\'H2O\_\{\\mathrm\{WPL\}\}\'\}
-\}\{
-\\overline\{w\'H2O\_\{\\mathrm\{WPL\}\}\'\}
-\}
-\\right\|
-\\times 100
-$end:math:display$
+```math
+SS_{\mathrm{dev},LE}
+=
+\left|
+\frac{
+\left<\overline{w'H2O_{\mathrm{WPL}}'}_k\right>
+-
+\overline{w'H2O_{\mathrm{WPL}}'}
+}{
+\overline{w'H2O_{\mathrm{WPL}}'}
+}
+\right|
+\times 100
+```
 
 ---
 
@@ -247,30 +247,30 @@ $end:math:display$
 
 The WPL-corrected CO2 perturbation is:
 
-$begin:math:display$
-\\rho\_\{c\,\\mathrm\{WPL\}\}\'
-\=
-\\rho\_c\'
-\+
-\\rho\_\{c\,\\mathrm\{external\}\}\'
-$end:math:display$
+```math
+\rho_{c,\mathrm{WPL}}'
+=
+\rho_c'
++
+\rho_{c,\mathrm{external}}'
+```
 
 The steady-state deviation is:
 
-$begin:math:display$
-SS\_\{\\mathrm\{dev\}\,FC\}
-\=
-\\left\|
-\\frac\{
-\\left\<\\overline\{w\'\\rho\_\{c\,\\mathrm\{WPL\}\}\'\}\_k\\right\>
-\-
-\\overline\{w\'\\rho\_\{c\,\\mathrm\{WPL\}\}\'\}
-\}\{
-\\overline\{w\'\\rho\_\{c\,\\mathrm\{WPL\}\}\'\}
-\}
-\\right\|
-\\times 100
-$end:math:display$
+```math
+SS_{\mathrm{dev},FC}
+=
+\left|
+\frac{
+\left<\overline{w'\rho_{c,\mathrm{WPL}}'}_k\right>
+-
+\overline{w'\rho_{c,\mathrm{WPL}}'}
+}{
+\overline{w'\rho_{c,\mathrm{WPL}}'}
+}
+\right|
+\times 100
+```
 
 ---
 
@@ -280,9 +280,9 @@ $end:math:display$
 
 The code uses only the vertical-velocity ITC test:
 
-$begin:math:display$
-\\frac\{\\sigma\_w\}\{u\_\*\}
-$end:math:display$
+```math
+\frac{\sigma_w}{u_*}
+```
 
 Scalar ITC tests are not used.
 
@@ -294,35 +294,35 @@ This choice avoids imposing scalar similarity assumptions on heat, water vapor, 
 
 The code computes:
 
-$begin:math:display$
-u\_\*
-\=
-\\sqrt\{
-\\sqrt\{
-\\overline\{u\'w\'\}\^2
-\+
-\\overline\{v\'w\'\}\^2
-\}
-\}
-$end:math:display$
+```math
+u_*
+=
+\sqrt{
+\sqrt{
+\overline{u'w'}^2
++
+\overline{v'w'}^2
+}
+}
+```
 
 because the stored momentum-flux variable is:
 
-$begin:math:display$
-\\tau\_\{\\mathrm\{kin\}\}
-\=
-\\sqrt\{
-\\overline\{u\'w\'\}\^2
-\+
-\\overline\{v\'w\'\}\^2
-\}
-$end:math:display$
+```math
+\tau_{\mathrm{kin}}
+=
+\sqrt{
+\overline{u'w'}^2
++
+\overline{v'w'}^2
+}
+```
 
 so:
 
-$begin:math:display$
-u\_\* \= \\sqrt\{\\tau\_\{\\mathrm\{kin\}\}\}
-$end:math:display$
+```math
+u_* = \sqrt{\tau_{\mathrm{kin}}}
+```
 
 ---
 
@@ -330,14 +330,14 @@ $end:math:display$
 
 The vertical velocity standard deviation is:
 
-$begin:math:display$
-\\sigma\_w \=
-\\sqrt\{
-\\frac\{1\}\{N\}
-\\sum\_\{i\=1\}\^\{N\}
-\\left\(w\_i\-\\overline\{w\}\\right\)\^2
-\}
-$end:math:display$
+```math
+\sigma_w =
+\sqrt{
+\frac{1}{N}
+\sum_{i=1}^{N}
+\left(w_i-\overline{w}\right)^2
+}
+```
 
 For strict Reynolds-averaging consistency, this should use population normalization $begin:math:text$N$end:math:text$, not $begin:math:text$N\-1$end:math:text$.
 
@@ -351,11 +351,11 @@ std(wPF_P, 1, 'omitmissing')
 
 ## 5.4 Measured ITC quantity
 
-$begin:math:display$
-ITC\_\{\\mathrm\{measured\}\}
-\=
-\\frac\{\\sigma\_w\}\{u\_\*\}
-$end:math:display$
+```math
+ITC_{\mathrm{measured}}
+=
+\frac{\sigma_w}{u_*}
+```
 
 ---
 
@@ -363,10 +363,10 @@ $end:math:display$
 
 For above-canopy ITC, the stability parameter is:
 
-$begin:math:display$
-\\zeta \=
-\\frac\{z\-d\}\{L\}
-$end:math:display$
+```math
+\zeta =
+\frac{z-d}{L}
+```
 
 where:
 
@@ -378,22 +378,22 @@ where:
 
 The code uses:
 
-$begin:math:display$
-\\zeta \=
-\\frac\{
-\\max\(z\-d\,0\.1\)
-\}\{
+```math
+\zeta =
+\frac{
+\max(z-d,0.1)
+}{
 L
-\}
-$end:math:display$
+}
+```
 
 The lower bound of 0.1 m prevents negative or zero effective height.
 
 For current FM Dolly use, recommended configuration is:
 
-$begin:math:display$
-d \= 0
-$end:math:display$
+```math
+d = 0
+```
 
 because displacement height is uncertain in steep, heterogeneous forested terrain.
 
@@ -403,11 +403,11 @@ because displacement height is uncertain in steep, heterogeneous forested terrai
 
 For above-canopy measurements, the expected value of $begin:math:text$\\sigma\_w\/u\_\*$end:math:text$ is modeled as:
 
-$begin:math:display$
-\\left\(\\frac\{\\sigma\_w\}\{u\_\*\}\\right\)\_\{\\mathrm\{model\}\}
-\=
-c\_1 \|\\zeta\|\^\{c\_2\}
-$end:math:display$
+```math
+\left(\frac{\sigma_w}{u_*}\right)_{\mathrm{model}}
+=
+c_1 |\zeta|^{c_2}
+```
 
 The code currently uses:
 
@@ -419,19 +419,19 @@ The code currently uses:
 
 Thus:
 
-$begin:math:display$
-\\left\(\\frac\{\\sigma\_w\}\{u\_\*\}\\right\)\_\{\\mathrm\{model\}\}
-\=
-2\.0\|\\zeta\|\^\{1\/8\}\,
-\\quad \\zeta \< \-0\.032
-$end:math:display$
+```math
+\left(\frac{\sigma_w}{u_*}\right)_{\mathrm{model}}
+=
+2.0|\zeta|^{1/8},
+\quad \zeta < -0.032
+```
 
-$begin:math:display$
-\\left\(\\frac\{\\sigma\_w\}\{u\_\*\}\\right\)\_\{\\mathrm\{model\}\}
-\=
-1\.3\,
-\\quad \\zeta \\ge \-0\.032
-$end:math:display$
+```math
+\left(\frac{\sigma_w}{u_*}\right)_{\mathrm{model}}
+=
+1.3,
+\quad \zeta \ge -0.032
+```
 
 The stable case is treated conservatively using the near-neutral value because stable ITC assumptions are especially uncertain in forested complex terrain.
 
@@ -441,29 +441,29 @@ The stable case is treated conservatively using the near-neutral value because s
 
 For within-canopy measurements, where:
 
-$begin:math:display$
-z \\le h\_c
-$end:math:display$
+```math
+z \le h_c
+```
 
 the code uses a canopy-aware parameterization:
 
-$begin:math:display$
-\\left\(\\frac\{\\sigma\_w\}\{u\_\*\}\\right\)\_\{\\mathrm\{model\}\}
-\=
-a\_i
-\\left\[
-\\exp
-\\left\(
-\-\\alpha\_i
-\\left\(
-1\-\\frac\{z\}\{h\_c\}
-\\right\)\^\{\\beta\_i\}
-\\right\)
-\(1\-\\gamma\_i\)
-\+
-\\gamma\_i
-\\right\]
-$end:math:display$
+```math
+\left(\frac{\sigma_w}{u_*}\right)_{\mathrm{model}}
+=
+a_i
+\left[
+\exp
+\left(
+-\alpha_i
+\left(
+1-\frac{z}{h_c}
+\right)^{\beta_i}
+\right)
+(1-\gamma_i)
++
+\gamma_i
+\right]
+```
 
 where:
 
@@ -484,9 +484,9 @@ and:
 
 The normalized height is constrained as:
 
-$begin:math:display$
-0 \\le \\frac\{z\}\{h\_c\} \\le 1
-$end:math:display$
+```math
+0 \le \frac{z}{h_c} \le 1
+```
 
 ---
 
@@ -494,37 +494,37 @@ $end:math:display$
 
 The ITC deviation is:
 
-$begin:math:display$
-ITC\_\{\\mathrm\{dev\}\}
-\=
-\\left\|
-\\frac\{
-ITC\_\{\\mathrm\{model\}\}
-\-
-ITC\_\{\\mathrm\{measured\}\}
-\}\{
-ITC\_\{\\mathrm\{model\}\}
-\}
-\\right\|
-\\times 100
-$end:math:display$
+```math
+ITC_{\mathrm{dev}}
+=
+\left|
+\frac{
+ITC_{\mathrm{model}}
+-
+ITC_{\mathrm{measured}}
+}{
+ITC_{\mathrm{model}}
+}
+\right|
+\times 100
+```
 
 or:
 
-$begin:math:display$
-ITC\_\{\\mathrm\{dev\}\}
-\=
-\\left\|
-\\frac\{
-\\left\(\\sigma\_w\/u\_\*\\right\)\_\{\\mathrm\{model\}\}
-\-
-\\left\(\\sigma\_w\/u\_\*\\right\)\_\{\\mathrm\{measured\}\}
-\}\{
-\\left\(\\sigma\_w\/u\_\*\\right\)\_\{\\mathrm\{model\}\}
-\}
-\\right\|
-\\times 100
-$end:math:display$
+```math
+ITC_{\mathrm{dev}}
+=
+\left|
+\frac{
+\left(\sigma_w/u_*\right)_{\mathrm{model}}
+-
+\left(\sigma_w/u_*\right)_{\mathrm{measured}}
+}{
+\left(\sigma_w/u_*\right)_{\mathrm{model}}
+}
+\right|
+\times 100
+```
 
 ---
 
@@ -540,14 +540,14 @@ The combined SSITC flag is:
 
 Thus:
 
-$begin:math:display$
-SSITC \=
-\\begin\{cases\}
-0\, \& SS\_\{\\mathrm\{dev\}\} \< 30\\\% \\ \\mathrm\{and\} \\ ITC\_\{\\mathrm\{dev\}\} \< 30\\\% \\\\
-1\, \& SS\_\{\\mathrm\{dev\}\} \< 100\\\% \\ \\mathrm\{and\} \\ ITC\_\{\\mathrm\{dev\}\} \< 100\\\% \\\\
-2\, \& \\mathrm\{otherwise\}
-\\end\{cases\}
-$end:math:display$
+```math
+SSITC =
+\begin{cases}
+0, & SS_{\mathrm{dev}} < 30\% \ \mathrm{and} \ ITC_{\mathrm{dev}} < 30\% \\
+1, & SS_{\mathrm{dev}} < 100\% \ \mathrm{and} \ ITC_{\mathrm{dev}} < 100\% \\
+2, & \mathrm{otherwise}
+\end{cases}
+```
 
 ---
 
@@ -563,15 +563,15 @@ The steady-state-only flag is:
 
 Thus:
 
-$begin:math:display$
-SS\_\{\\mathrm\{only\}\}
-\=
-\\begin\{cases\}
-0\, \& SS\_\{\\mathrm\{dev\}\} \< 30\\\% \\\\
-1\, \& SS\_\{\\mathrm\{dev\}\} \< 100\\\% \\\\
-2\, \& \\mathrm\{otherwise\}
-\\end\{cases\}
-$end:math:display$
+```math
+SS_{\mathrm{only}}
+=
+\begin{cases}
+0, & SS_{\mathrm{dev}} < 30\% \\
+1, & SS_{\mathrm{dev}} < 100\% \\
+2, & \mathrm{otherwise}
+\end{cases}
+```
 
 ---
 
@@ -581,75 +581,75 @@ If relevant instrument or diagnostic flags indicate invalid data, the final qual
 
 ## 12.1 Momentum
 
-$begin:math:display$
-TAU\_\{\\mathrm\{flag\}\} \= 2
-$end:math:display$
+```math
+TAU_{\mathrm{flag}} = 2
+```
 
 if:
 
-$begin:math:display$
-\\mathrm\{rotatedSonFlag\} \= 1
-$end:math:display$
+```math
+\mathrm{rotatedSonFlag} = 1
+```
 
 ---
 
 ## 12.2 Sensible heat
 
-$begin:math:display$
-H\_\{\\mathrm\{flag\}\} \= 2
-$end:math:display$
+```math
+H_{\mathrm{flag}} = 2
+```
 
 if:
 
-$begin:math:display$
-\\mathrm\{rotatedSonFlag\} \= 1
-$end:math:display$
+```math
+\mathrm{rotatedSonFlag} = 1
+```
 
 or:
 
-$begin:math:display$
-\\mathrm\{TsonFlag\} \= 1
-$end:math:display$
+```math
+\mathrm{TsonFlag} = 1
+```
 
 ---
 
 ## 12.3 Latent heat
 
-$begin:math:display$
-LE\_\{\\mathrm\{flag\}\} \= 2
-$end:math:display$
+```math
+LE_{\mathrm{flag}} = 2
+```
 
 if:
 
-$begin:math:display$
-\\mathrm\{rotatedSonFlag\} \= 1
-$end:math:display$
+```math
+\mathrm{rotatedSonFlag} = 1
+```
 
 or:
 
-$begin:math:display$
-\\mathrm\{H2OFlag\} \= 1
-$end:math:display$
+```math
+\mathrm{H2OFlag} = 1
+```
 
 ---
 
 ## 12.4 CO2 flux
 
-$begin:math:display$
-FC\_\{\\mathrm\{flag\}\} \= 2
-$end:math:display$
+```math
+FC_{\mathrm{flag}} = 2
+```
 
 if:
 
-$begin:math:display$
-\\mathrm\{rotatedSonFlag\} \= 1
-$end:math:display$
+```math
+\mathrm{rotatedSonFlag} = 1
+```
 
 or:
 
-$begin:math:display$
-\\mathrm\{CO2Flag\} \= 1
-$end:math:display$
+```math
+\mathrm{CO2Flag} = 1
+```
 
 ---
 
@@ -688,17 +688,17 @@ Example output headers:
 
 For AmeriFlux reporting:
 
-$begin:math:display$
-\*\_SSITC\\\_TEST
-$end:math:display$
+```math
+*_SSITC\_TEST
+```
 
 should be reported for transparency and compatibility.
 
 For scientific analysis of slope-flow and within-canopy turbulence:
 
-$begin:math:display$
-\*\_SSITC\\\_TEST
-$end:math:display$
+```math
+*_SSITC\_TEST
+```
 
 should not be used as a strict exclusion filter because the analysis targets regimes where stationarity and integral turbulence similarity assumptions are expected to break down.
 
@@ -713,15 +713,15 @@ Instead, SSITC flags should be interpreted as diagnostic indicators of:
 
 Therefore, for FM Dolly:
 
-$begin:math:display$
-SSITC \\neq \\mathrm\{instrument\\ failure\}
-$end:math:display$
+```math
+SSITC \neq \mathrm{instrument\ failure}
+```
 
 Rather:
 
-$begin:math:display$
-SSITC \= \\mathrm\{diagnostic\\ of\\ stationarity\\ and\\ similarity\\ assumptions\}
-$end:math:display$
+```math
+SSITC = \mathrm{diagnostic\ of\ stationarity\ and\ similarity\ assumptions}
+```
 
 ---
 
