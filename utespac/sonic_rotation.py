@@ -75,7 +75,8 @@ def sonic_rotation(
                             d0, d1 = t[0], t[-1]
 
                         date_mask = np.zeros(n_pts, dtype=bool)
-                        date_mask[(t >= d0) & (t <= d1)] = True
+                        # d1 is integer midnight; use < d1+1 so the whole last day is covered
+                        date_mask[(t >= d0) & (t < d1 + 1)] = True
 
                         # Expand dir_avg to high-frequency
                         reps = n_pts // len(dir_avg)
