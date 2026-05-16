@@ -391,29 +391,44 @@ For above-canopy measurements, the expected value of `sigma_w/u*` is modeled as:
 c_1 |\zeta|^{c_2}
 ```
 
+where:
+
+```math
+\zeta = \frac{z-d}{L}
+```
+
+The code follows the Foken et al. (1991) parameterization for `sigma_w/u*`.
+
+Because no separate stable-stratification parameterization was available in the cited formulation, the same parameterization is applied symmetrically for stable and unstable non-neutral conditions using `abs(zeta)`.
+
 | Stability regime | Condition | c1 | c2 | Model |
 |---|---:|---:|---:|---|
-| Unstable | `zeta < -0.032` | 2.0 | 1/8 | `2.0 abs(zeta)^(1/8)` |
-| Near-neutral unstable | `-0.032 <= zeta < 0` | 1.3 | 0 | `1.3` |
-| Stable fallback | `zeta >= 0` | 1.3 | 0 | `1.3` |
+| Near-neutral | `abs(zeta) <= 0.0319` | 1.3 | 0 | `1.3` |
+| Non-neutral | `abs(zeta) > 0.0319` | 2.0 | 1/8 | `2.0 * abs(zeta)^(1/8)` |
 
 Thus:
 
 ```math
 \left(\frac{\sigma_w}{u_*}\right)_{\mathrm{model}}
 =
-2.0|\zeta|^{1/8},
-\quad \zeta < -0.032
+1.3,
+\quad |\zeta| \le 0.0319
 ```
+
+and:
 
 ```math
 \left(\frac{\sigma_w}{u_*}\right)_{\mathrm{model}}
 =
-1.3,
-\quad \zeta \ge -0.032
+2.0 |\zeta|^{1/8},
+\quad |\zeta| > 0.0319
 ```
 
-The stable case is treated conservatively using the near-neutral value because stable ITC assumptions are especially uncertain in forested complex terrain.
+This implementation follows the statement in Mauder and Foken (2011):
+
+> “As there are no parameterisations for stable stratifications available, we used the same parameterisations as in the unstable case.”
+
+Accordingly, stable conditions (`zeta > 0`) and unstable conditions (`zeta < 0`) are treated identically in the non-neutral regime.
 
 ---
 
