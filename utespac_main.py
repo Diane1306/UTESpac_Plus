@@ -53,7 +53,7 @@ info["detrendingFormat"] = "linear"
 # 'global' – multi-sector, multi-date-bin PF from all site data
 info["PF"] = {
     "globalCalculation":              "global",
-    "recalculateGlobalCoefficients":  False,
+    "recalculateGlobalCoefficients":  True,
     "avgPer":                         30,
     "globalCalcMaxWind":              12,
     "globalCalcMinWind":              0.5,
