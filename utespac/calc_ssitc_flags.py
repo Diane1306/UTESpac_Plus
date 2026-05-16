@@ -171,12 +171,16 @@ def _ss_dev(x, w, n_sub):
 # ── ITC reference models ──────────────────────────────────────────────────────
 
 def _above_canopy_sigmaw(zeta):
-    """Foken-style above-canopy σ_w/u* reference."""
+    """Foken-style above-canopy σ_w/u* reference.
+
+    Both stable and unstable sides use 2.0|ζ|^(1/8) when |ζ| > 0.0319,
+    and 1.3 in the near-neutral regime.
+    """
     if np.isnan(zeta):
         return np.nan
-    if zeta < -0.032:
+    if abs(zeta) > 0.0319:
         return 2.0 * abs(zeta) ** (1.0 / 8.0)
-    return 1.3   # near-neutral and stable
+    return 1.3   # near-neutral
 
 
 def _canopy_sigmaw(z, hc):
