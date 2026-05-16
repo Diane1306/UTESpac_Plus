@@ -14,29 +14,23 @@ The following fluxes are flagged:
 | Flux | Variable tested |
 |---|---|
 | `TAU` | `u'w'` and `v'w'` |
-| `H` | `w'θ_v'` |
+| `H` | `w'θv'` |
 | `LE` | `w'H2O_WPL'` |
 | `FC` | `w'CO2_WPL'` |
 
 ---
 
-# 2. Averaging Period and Subperiods
+## 2. Averaging Period and Subperiods
 
 Each averaging period, usually 30 min, is divided into 5-min subperiods.
-
-If the averaging period is:
 
 ```math
 T = 30 \ \mathrm{min}
 ```
 
-and the subperiod length is:
-
 ```math
 T_s = 5 \ \mathrm{min}
 ```
-
-then the number of subperiods is:
 
 ```math
 N_s = \frac{T}{T_s} = 6
@@ -50,11 +44,11 @@ The code requires:
 
 ---
 
-# 3. Steady-State Test
+## 3. Steady-State Test
 
-## 3.1 Full-period covariance
+### 3.1 Full-period covariance
 
-For a scalar or velocity variable $begin:math:text$x$end:math:text$, the full-period covariance with vertical velocity $begin:math:text$w$end:math:text$ is:
+For a scalar or velocity variable `x`, the full-period covariance with vertical velocity `w` is:
 
 ```math
 \overline{w'x'} =
@@ -76,13 +70,13 @@ where:
 \frac{1}{N}\sum_{i=1}^{N}x_i
 ```
 
-The code uses population-style Reynolds averaging, i.e. normalization by $begin:math:text$N$end:math:text$, not $begin:math:text$N\-1$end:math:text$.
+The code uses population-style Reynolds averaging, with normalization by `N`, not `N - 1`.
 
 ---
 
-## 3.2 Subperiod covariance
+### 3.2 Subperiod covariance
 
-For each 5-min subperiod $begin:math:text$k$end:math:text$, the covariance is:
+For each 5-min subperiod `k`, the covariance is:
 
 ```math
 \overline{w'x'}_k =
@@ -104,9 +98,7 @@ The mean subperiod covariance is:
 
 ---
 
-## 3.3 Steady-state deviation
-
-The relative steady-state deviation is:
+### 3.3 Steady-state deviation
 
 ```math
 SS_{\mathrm{dev}}
@@ -123,19 +115,17 @@ SS_{\mathrm{dev}}
 \times 100
 ```
 
-where:
-
 | Symbol | Meaning |
 |---|---|
-| $begin:math:text$SS\_\{\\mathrm\{dev\}\}$end:math:text$ | steady-state deviation in percent |
-| $begin:math:text$\\overline\{w\'x\'\}$end:math:text$ | full-period covariance |
-| $begin:math:text$\\left\<\\overline\{w\'x\'\}\_k\\right\>$end:math:text$ | mean of subperiod covariances |
+| `SSdev` | steady-state deviation in percent |
+| `cov_30min` | full-period covariance |
+| `mean(cov_5min)` | mean of subperiod covariances |
 
 ---
 
-# 4. Steady-State Variables Tested
+## 4. Steady-State Variables Tested
 
-## 4.1 Momentum flux
+### 4.1 Momentum flux
 
 For momentum, two covariance components are tested:
 
@@ -169,7 +159,7 @@ SS_{\mathrm{dev},vw}
 \times 100
 ```
 
-The code uses the worse of the two:
+The worse value is used:
 
 ```math
 SS_{\mathrm{dev},\tau}
@@ -183,7 +173,7 @@ SS_{\mathrm{dev},vw}
 
 ---
 
-## 4.2 Sensible heat flux
+### 4.2 Sensible heat flux
 
 ```math
 SS_{\mathrm{dev},H}
@@ -202,7 +192,7 @@ SS_{\mathrm{dev},H}
 
 ---
 
-## 4.3 Latent heat flux
+### 4.3 Latent heat flux
 
 The WPL-corrected water-vapor perturbation is:
 
@@ -243,7 +233,7 @@ SS_{\mathrm{dev},LE}
 
 ---
 
-## 4.4 CO2 flux
+### 4.4 CO2 flux
 
 The WPL-corrected CO2 perturbation is:
 
@@ -274,9 +264,9 @@ SS_{\mathrm{dev},FC}
 
 ---
 
-# 5. Integral Turbulence Characteristics Test
+## 5. Integral Turbulence Characteristics Test
 
-## 5.1 Current implementation
+### 5.1 Current implementation
 
 The code uses only the vertical-velocity ITC test:
 
@@ -286,13 +276,31 @@ The code uses only the vertical-velocity ITC test:
 
 Scalar ITC tests are not used.
 
-This choice avoids imposing scalar similarity assumptions on heat, water vapor, and CO2 fluxes in forested slope-flow regimes.
+This avoids imposing scalar similarity assumptions on heat, water vapor, and CO2 fluxes in forested slope-flow regimes.
 
 ---
 
-## 5.2 Friction velocity
+### 5.2 Friction velocity
 
-The code computes:
+The stored kinematic momentum-flux variable is:
+
+```math
+\tau_{\mathrm{kin}}
+=
+\sqrt{
+\overline{u'w'}^2
++
+\overline{v'w'}^2
+}
+```
+
+The code computes friction velocity as:
+
+```math
+u_* = \sqrt{\tau_{\mathrm{kin}}}
+```
+
+equivalent to:
 
 ```math
 u_*
@@ -306,29 +314,9 @@ u_*
 }
 ```
 
-because the stored momentum-flux variable is:
-
-```math
-\tau_{\mathrm{kin}}
-=
-\sqrt{
-\overline{u'w'}^2
-+
-\overline{v'w'}^2
-}
-```
-
-so:
-
-```math
-u_* = \sqrt{\tau_{\mathrm{kin}}}
-```
-
 ---
 
-## 5.3 Vertical velocity standard deviation
-
-The vertical velocity standard deviation is:
+### 5.3 Vertical velocity standard deviation
 
 ```math
 \sigma_w =
@@ -339,9 +327,7 @@ The vertical velocity standard deviation is:
 }
 ```
 
-For strict Reynolds-averaging consistency, this should use population normalization $begin:math:text$N$end:math:text$, not $begin:math:text$N\-1$end:math:text$.
-
-In MATLAB, this corresponds to:
+For strict Reynolds-averaging consistency, use population normalization:
 
 ```matlab
 std(wPF_P, 1, 'omitmissing')
@@ -349,7 +335,7 @@ std(wPF_P, 1, 'omitmissing')
 
 ---
 
-## 5.4 Measured ITC quantity
+### 5.4 Measured ITC quantity
 
 ```math
 ITC_{\mathrm{measured}}
@@ -359,7 +345,7 @@ ITC_{\mathrm{measured}}
 
 ---
 
-# 6. Stability Parameter
+## 6. Stability Parameter
 
 For above-canopy ITC, the stability parameter is:
 
@@ -368,13 +354,11 @@ For above-canopy ITC, the stability parameter is:
 \frac{z-d}{L}
 ```
 
-where:
-
 | Symbol | Meaning |
 |---|---|
-| $begin:math:text$z$end:math:text$ | sonic measurement height |
-| $begin:math:text$d$end:math:text$ | displacement height |
-| $begin:math:text$L$end:math:text$ | Obukhov length |
+| `z` | sonic measurement height |
+| `d` | displacement height |
+| `L` | Obukhov length |
 
 The code uses:
 
@@ -387,9 +371,7 @@ L
 }
 ```
 
-The lower bound of 0.1 m prevents negative or zero effective height.
-
-For current FM Dolly use, recommended configuration is:
+For FM Dolly, the recommended default is:
 
 ```math
 d = 0
@@ -399,9 +381,9 @@ because displacement height is uncertain in steep, heterogeneous forested terrai
 
 ---
 
-# 7. Above-Canopy ITC Model
+## 7. Above-Canopy ITC Model
 
-For above-canopy measurements, the expected value of $begin:math:text$\\sigma\_w\/u\_\*$end:math:text$ is modeled as:
+For above-canopy measurements, the expected value of `sigma_w/u*` is modeled as:
 
 ```math
 \left(\frac{\sigma_w}{u_*}\right)_{\mathrm{model}}
@@ -409,13 +391,11 @@ For above-canopy measurements, the expected value of $begin:math:text$\\sigma\_w
 c_1 |\zeta|^{c_2}
 ```
 
-The code currently uses:
-
-| Stability regime | Condition | $begin:math:text$c\_1$end:math:text$ | $begin:math:text$c\_2$end:math:text$ | Model |
+| Stability regime | Condition | c1 | c2 | Model |
 |---|---:|---:|---:|---|
-| Unstable | $begin:math:text$\\zeta \< \-0\.032$end:math:text$ | 2.0 | 1/8 | $begin:math:text$2\.0\|\\zeta\|\^\{1\/8\}$end:math:text$ |
-| Near-neutral unstable | $begin:math:text$\-0\.032 \\le \\zeta \< 0$end:math:text$ | 1.3 | 0 | $begin:math:text$1\.3$end:math:text$ |
-| Stable fallback | $begin:math:text$\\zeta \\ge 0$end:math:text$ | 1.3 | 0 | $begin:math:text$1\.3$end:math:text$ |
+| Unstable | `zeta < -0.032` | 2.0 | 1/8 | `2.0 abs(zeta)^(1/8)` |
+| Near-neutral unstable | `-0.032 <= zeta < 0` | 1.3 | 0 | `1.3` |
+| Stable fallback | `zeta >= 0` | 1.3 | 0 | `1.3` |
 
 Thus:
 
@@ -437,9 +417,9 @@ The stable case is treated conservatively using the near-neutral value because s
 
 ---
 
-# 8. Canopy-Aware ITC Model
+## 8. Canopy-Aware ITC Model
 
-For within-canopy measurements, where:
+For within-canopy measurements:
 
 ```math
 z \le h_c
@@ -465,22 +445,18 @@ a_i
 \right]
 ```
 
-where:
-
 | Parameter | Value |
 |---|---:|
-| $begin:math:text$a\_i$end:math:text$ | 1.25 |
-| $begin:math:text$\\alpha\_i$end:math:text$ | 0.9 |
-| $begin:math:text$\\beta\_i$end:math:text$ | 1.2 |
-| $begin:math:text$\\gamma\_i$end:math:text$ | -0.63 |
-
-and:
+| `ai` | 1.25 |
+| `alpha_i` | 0.9 |
+| `beta_i` | 1.2 |
+| `gamma_i` | -0.63 |
 
 | Symbol | Meaning |
 |---|---|
-| $begin:math:text$z$end:math:text$ | sonic height |
-| $begin:math:text$h\_c$end:math:text$ | canopy height |
-| $begin:math:text$z\/h\_c$end:math:text$ | normalized canopy height |
+| `z` | sonic height |
+| `hc` | canopy height |
+| `z/hc` | normalized canopy height |
 
 The normalized height is constrained as:
 
@@ -490,9 +466,7 @@ The normalized height is constrained as:
 
 ---
 
-# 9. ITC Deviation
-
-The ITC deviation is:
+## 9. ITC Deviation
 
 ```math
 ITC_{\mathrm{dev}}
@@ -528,17 +502,13 @@ ITC_{\mathrm{dev}}
 
 ---
 
-# 10. SSITC Final Flag
-
-The combined SSITC flag is:
+## 10. SSITC Final Flag
 
 | Condition | `*_SSITC_TEST` |
 |---|---:|
-| $begin:math:text$SS\_\{\\mathrm\{dev\}\} \< 30\\\%$end:math:text$ and $begin:math:text$ITC\_\{\\mathrm\{dev\}\} \< 30\\\%$end:math:text$ | 0 |
-| $begin:math:text$SS\_\{\\mathrm\{dev\}\} \< 100\\\%$end:math:text$ and $begin:math:text$ITC\_\{\\mathrm\{dev\}\} \< 100\\\%$end:math:text$ | 1 |
+| `SSdev < 30%` and `ITCdev < 30%` | 0 |
+| `SSdev < 100%` and `ITCdev < 100%` | 1 |
 | otherwise | 2 |
-
-Thus:
 
 ```math
 SSITC =
@@ -551,17 +521,13 @@ SSITC =
 
 ---
 
-# 11. Steady-State-Only Final Flag
-
-The steady-state-only flag is:
+## 11. Steady-State-Only Final Flag
 
 | Condition | `*_SS_ONLY_TEST` |
 |---|---:|
-| $begin:math:text$SS\_\{\\mathrm\{dev\}\} \< 30\\\%$end:math:text$ | 0 |
-| $begin:math:text$SS\_\{\\mathrm\{dev\}\} \< 100\\\%$end:math:text$ | 1 |
+| `SSdev < 30%` | 0 |
+| `SSdev < 100%` | 1 |
 | otherwise | 2 |
-
-Thus:
 
 ```math
 SS_{\mathrm{only}}
@@ -575,11 +541,11 @@ SS_{\mathrm{only}}
 
 ---
 
-# 12. Instrument and Diagnostic Overrides
+## 12. Instrument and Diagnostic Overrides
 
 If relevant instrument or diagnostic flags indicate invalid data, the final quality flag is forced to 2.
 
-## 12.1 Momentum
+### 12.1 Momentum
 
 ```math
 TAU_{\mathrm{flag}} = 2
@@ -593,7 +559,7 @@ if:
 
 ---
 
-## 12.2 Sensible heat
+### 12.2 Sensible heat
 
 ```math
 H_{\mathrm{flag}} = 2
@@ -613,7 +579,7 @@ or:
 
 ---
 
-## 12.3 Latent heat
+### 12.3 Latent heat
 
 ```math
 LE_{\mathrm{flag}} = 2
@@ -633,7 +599,7 @@ or:
 
 ---
 
-## 12.4 CO2 flux
+### 12.4 CO2 flux
 
 ```math
 FC_{\mathrm{flag}} = 2
@@ -653,7 +619,7 @@ or:
 
 ---
 
-# 13. Output Variables
+## 13. Output Variables
 
 For each sonic height, the code stores eight columns:
 
@@ -684,34 +650,26 @@ Example output headers:
 
 ---
 
-# 14. Recommended Interpretation for FM Dolly
+## 14. Recommended Interpretation for FM Dolly
 
-For AmeriFlux reporting:
+For AmeriFlux reporting, use:
 
-```math
-*_SSITC\_TEST
+```text
+*_SSITC_TEST
 ```
 
-should be reported for transparency and compatibility.
+For scientific analysis of slope-flow and within-canopy turbulence, do not use SSITC as a strict exclusion filter, because the analysis targets regimes where stationarity and integral turbulence similarity assumptions are expected to break down.
 
-For scientific analysis of slope-flow and within-canopy turbulence:
-
-```math
-*_SSITC\_TEST
-```
-
-should not be used as a strict exclusion filter because the analysis targets regimes where stationarity and integral turbulence similarity assumptions are expected to break down.
-
-Instead, SSITC flags should be interpreted as diagnostic indicators of:
+Instead, interpret SSITC flags as diagnostic indicators:
 
 | Flag behavior | Physical interpretation |
 |---|---|
-| many flag-2 periods inside canopy | expected nonstationarity / canopy intermittency |
+| many flag-2 periods inside canopy | expected nonstationarity and canopy intermittency |
 | ITC failure during slope flow | MOST or flux-variance similarity breakdown |
 | SS failure during transitions | intermittent coherent transport or regime change |
-| high-quality instrument diagnostics but poor SSITC | physically meaningful non-ideal turbulence |
+| good instrument diagnostics but poor SSITC | physically meaningful non-ideal turbulence |
 
-Therefore, for FM Dolly:
+Therefore:
 
 ```math
 SSITC \neq \mathrm{instrument\ failure}
@@ -725,6 +683,6 @@ SSITC = \mathrm{diagnostic\ of\ stationarity\ and\ similarity\ assumptions}
 
 ---
 
-# 15. Recommended Statement for Reports
+## 15. Recommended Statement for Reports
 
-Foken-style steady-state and integral turbulence characteristics flags were computed for AmeriFlux-compatible reporting. The combined SSITC flag uses the steady-state covariance test together with a canopy-aware, vertical-velocity-based ITC test. For within-canopy measurements, a Rannik-style canopy parameterization was used for $begin:math:text$\\sigma\_w\/u\_\*$end:math:text$, while above-canopy measurements used a Foken-style stability-dependent reference. Because the scientific analysis focuses on forested slope-flow regimes where stationarity and similarity assumptions are expected to break down, SSITC flags were not used as hard exclusion criteria. Instead, they were interpreted as diagnostic indicators of nonstationarity and departures from similarity theory.
+Foken-style steady-state and integral turbulence characteristics flags were computed for AmeriFlux-compatible reporting. The combined SSITC flag uses the steady-state covariance test together with a canopy-aware, vertical-velocity-based ITC test. For within-canopy measurements, a Rannik-style canopy parameterization was used for sigma_w/u*, while above-canopy measurements used a Foken-style stability-dependent reference. Because the scientific analysis focuses on forested slope-flow regimes where stationarity and similarity assumptions are expected to break down, SSITC flags were not used as hard exclusion criteria. Instead, they were interpreted as diagnostic indicators of nonstationarity and departures from similarity theory.
