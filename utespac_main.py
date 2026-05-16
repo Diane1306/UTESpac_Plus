@@ -145,6 +145,30 @@ template = {
 
 # ---------------------------------------------------------------------------
 
+def _confirm_lpf(info: dict, data_files: list, table_names: list) -> None:
+    """Display LPF run summary and ask for confirmation before processing."""
+    site_name = os.path.basename(info.get("siteFolder", "unknown"))
+    pf_settings = info.get("PF", {})
+
+    print("\n" + "=" * 60)
+    print("  UTESpac — Local Planar Fit (LPF) Mode")
+    print("=" * 60)
+    print(f"  Site              : {site_name}")
+    print(f"  Tables            : {', '.join(table_names)}")
+    print(f"  Files to process  : {len(data_files)}")
+    print(f"  Averaging period  : {info.get('avgPer', 30)} min")
+    print(f"  Detrending        : {info.get('detrendingFormat', 'linear')}")
+    print(f"  PF mode           : local (per-file, no sector binning)")
+    print(f"  Max wind speed    : {pf_settings.get('globalCalcMaxWind', 12)} m/s")
+    print(f"  Min wind speed    : {pf_settings.get('globalCalcMinWind', 0.5)} m/s")
+    print("=" * 60)
+
+    ans = input("\nOkay to begin analysis? (yes/no): ").strip().lower()
+    if ans not in ("yes", "y"):
+        print("Analysis cancelled.")
+        raise SystemExit(0)
+
+
 def run_utespac(info: dict = None, tmpl: dict = None,
                 site: str = None, dates=None) -> None:
     """Execute the full UTESpac processing pipeline.
@@ -182,10 +206,12 @@ def run_utespac(info: dict = None, tmpl: dict = None,
     # 2. Find instruments
     sensor_info = find_instruments(headers, tmpl, info)
 
-    # 3. Global PF (optional)
+    # 3. Global PF (optional) or LPF confirmation
     pf_info = None
     if info["PF"]["globalCalculation"] == "global":
         pf_info = find_global_pf(info, tmpl, sensor_info)
+    elif dates == "prompt":
+        _confirm_lpf(info, data_files, table_names)
 
     # 4. Main processing loop
     for i, data_files_row in enumerate(data_files):
