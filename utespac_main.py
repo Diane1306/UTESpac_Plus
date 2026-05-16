@@ -5,12 +5,20 @@ modified by Diane Wang).
 
 Usage::
 
+    # GPF, recalculate PF coefficients (default)
     python utespac_main.py
+
+    # LPF
+    python utespac_main.py --globalCalculation local
+
+    # GPF, reuse existing PFinfo without recalculating
+    python utespac_main.py --globalCalculation global --recalculateGlobalCoefficients false
 
 or import and call ``run_utespac(info)`` programmatically.
 """
 
 import os
+import argparse
 import warnings
 
 # ---------------------------------------------------------------------------
@@ -220,4 +228,25 @@ def run_utespac(info: dict = None, tmpl: dict = None,
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="UTESpac processing pipeline")
+    parser.add_argument(
+        "--globalCalculation",
+        choices=["global", "local"],
+        default=info["PF"]["globalCalculation"],
+        help="Planar-fit mode: 'global' (GPF) or 'local' (LPF). "
+             f"Default: {info['PF']['globalCalculation']}",
+    )
+    parser.add_argument(
+        "--recalculateGlobalCoefficients",
+        type=lambda x: x.lower() not in ("false", "0", "no"),
+        default=True,
+        metavar="{true,false}",
+        help="Recompute GPF coefficients (default: true). "
+             "Pass 'false' to reuse existing PFinfo.",
+    )
+    args = parser.parse_args()
+
+    info["PF"]["globalCalculation"]             = args.globalCalculation
+    info["PF"]["recalculateGlobalCoefficients"] = args.recalculateGlobalCoefficients
+
     run_utespac(info, template, dates="prompt")
