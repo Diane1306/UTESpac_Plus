@@ -276,12 +276,14 @@ end
 function model = local_above_canopy_sigmaw_over_ustar(zeta)
 
 % Foken-style above-canopy sigma_w/u* parameterization.
-% From commonly used ITC coefficient table:
-%   0 > z/L > -0.032 : c1 = 1.3, c2 = 0
-%   -0.032 > z/L     : c1 = 2.0, c2 = 1/8
 %
-% For stable conditions, a conservative near-neutral fallback is used
-% because stable parameterizations are less robust for complex terrain.
+% For sigma_w/u*:
+%   |z/L| <= 0.0319 : c1 = 1.3, c2 = 0
+%   |z/L| >  0.0319 : c1 = 2.0, c2 = 1/8
+%
+% The stable side is treated using the same parameterization as
+% the unstable side, following the note that no separate stable
+% parameterizations were available.
 
     model = nan;
 
@@ -289,10 +291,10 @@ function model = local_above_canopy_sigmaw_over_ustar(zeta)
         return
     end
 
-    if zeta < -0.032
+    zetaCrit = 0.0319;
+
+    if abs(zeta) > zetaCrit
         model = 2.0 .* abs(zeta).^(1/8);
-    elseif zeta < 0
-        model = 1.3;
     else
         model = 1.3;
     end
