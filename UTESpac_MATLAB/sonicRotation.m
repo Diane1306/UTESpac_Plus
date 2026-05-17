@@ -95,7 +95,7 @@ if isfield(sensorInfo,'u')
                             
                             % find rows within jjth date bin
                             dateLogical = zeros(size(t));
-                            dateLogical(t>=jth_PF_date_bin(1) & t<=jth_PF_date_bin(2)) = 1;
+                            dateLogical(t>=jth_PF_date_bin(1) & t<jth_PF_date_bin(2)+1) = 1; % Modified by Diane; before: dateLogical(t>=jth_PF_date_bin(1) & t<=jth_PF_date_bin(2)) = 1;
                             
                             % find rows within kkth direction bin
                             dirLogical = zeros(size(t));
