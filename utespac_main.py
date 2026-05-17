@@ -171,8 +171,8 @@ def _display_run_summary(info: dict, data_files: list, table_names: list,
     print(f"  PF mode           : {mode_label}")
     if mode == "global":
         print(f"  Recalculate PF    : {recalc}")
-    print(f"  Max wind speed    : {pf_settings.get('globalCalcMaxWind', 12)} m/s")
-    print(f"  Min wind speed    : {pf_settings.get('globalCalcMinWind', 0.5)} m/s")
+        print(f"  PF wind range     : {pf_settings.get('globalCalcMinWind', 0.5)}–"
+              f"{pf_settings.get('globalCalcMaxWind', 12)} m/s  (periods used for GPF regression)")
     print("=" * 60)
 
     if confirm:
