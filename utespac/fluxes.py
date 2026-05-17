@@ -1086,6 +1086,16 @@ def fluxes(
                         CO2fx_mat[jj, c_co2 + 4] = ppm_CO2
 
                         # raw CO2
+                        # Unit convention (Python vs MATLAB difference):
+                        #   rhoCO2            — mg/m³  in both Python and MATLAB
+                        #   rhoCO2Prime       — mg/m³  in Python  (rho_CO2p * 1e6)
+                        #                       kg/m³  in MATLAB  (fluxes.m line 1212, no reconversion)
+                        #   rhoCO2extenalPrime— mg/m³  in Python  (rhoc_ext * 1e6)
+                        #                       kg/m³  in MATLAB  (same pattern)
+                        # The WPL computation internally uses kg/m³ (rho_CO2p = ... / 1e6).
+                        # Python reconverts to mg/m³ for storage so that rhoCO2Prime is
+                        # in the same units as rhoCO2 and is consistent with rhov/rhovPrime
+                        # (both in g/m³). MATLAB omits the reconversion step.
                         if save_raw and "rhoCO2" in raw:
                             co2_si = 0
                             if "irgaCO2" in sensor_info:

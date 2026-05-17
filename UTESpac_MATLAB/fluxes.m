@@ -1208,6 +1208,15 @@ try
 
                 
                         % store CO2P in raw structure
+                        % Unit convention (MATLAB vs Python difference):
+                        %   rhoCO2             mg/m^3  in both MATLAB and Python
+                        %   rhoCO2Prime        kg/m^3  in MATLAB (rho_CO2p is already /1e6)
+                        %                      mg/m^3  in Python  (Python reconverts: rho_CO2p * 1e6)
+                        %   rhoCO2extenalPrime kg/m^3  in MATLAB
+                        %                      mg/m^3  in Python
+                        % The WPL computation uses kg/m^3 internally; MATLAB stores the
+                        % WPL-ready value directly.  Python converts back to mg/m^3 for
+                        % unit consistency with rhoCO2 and rhov/rhovPrime.
                         if info.saveRawConditionedData
                             raw.rhoCO2Prime(bp(jj)+1:bp(jj+1),CO2sensorNumber) = rho_CO2p; % kg/m^3
                             raw.rhoCO2extenalPrime(bp(jj)+1:bp(jj+1),CO2sensorNumber) = rhoc_externalp; % kg/m^3
