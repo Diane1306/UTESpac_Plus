@@ -9,30 +9,25 @@ Output structure:
   Flat zip archive (no subdirectories) per site type — AmeriFlux HF standard.
   Individual CSVs are removed after zipping.
 
-Variable convention (EddyPro / AmeriFlux standard; V = 1 = lowest height):
-  TIMESTAMP         – YYYYMMDDHHMMSS.cc  (local standard time, no DST; cc = centiseconds)
-  U_1_{V}_1         – planar-fit u wind component           [m s⁻¹]
-  V_1_{V}_1         – planar-fit v wind component           [m s⁻¹]  (~0 after PF rotation)
-  W_1_{V}_1         – planar-fit w wind component           [m s⁻¹]  (~0 after PF rotation)
-  T_SONIC_1_{V}_1   – sonic temperature                     [K]
-                         (sonTs [°C] + 273.15 — EddyPro / AmeriFlux convention is Kelvin)
-  H2O_1_{V}_1       – water vapour dry mole fraction        [mmol mol⁻¹]
-                         converted from rhov [g m⁻³] via ideal gas law using PA and T_SONIC
-  CO2_1_{V}_1       – CO2 dry mole fraction                 [µmol mol⁻¹]
-                         converted from rhoCO2 [mg m⁻³] via ideal gas law
-  PA_1_1_1          – atmospheric pressure (one barometer)  [Pa]
-                         (P [kPa] × 1000 — AmeriFlux / EddyPro convention is Pa)
+Variable convention (V = 1 = lowest height, AmeriFlux positional convention):
+  TIMESTAMP           – YYYYMMDDHHMMSS.cc  (local standard time, no DST; cc = centiseconds)
+  U_1_{V}_1           – planar-fit u wind component          [m s⁻¹]  standard unit
+  V_1_{V}_1           – planar-fit v wind component          [m s⁻¹]  (~0 after PF rotation)
+  W_1_{V}_1           – planar-fit w wind component          [m s⁻¹]  (~0 after PF rotation)
+  T_SONIC_1_{V}_1     – sonic temperature                    [°C]     standard unit
+  H2O_IU_1_{V}_1      – water vapour density                 [g m⁻³]  instrument unit (_IU)
+  CO2_IU_1_{V}_1      – CO2 density                         [mg m⁻³] instrument unit (_IU)
+  PA_1_1_1            – atmospheric pressure (one barometer) [kPa]    standard unit
 
-Mole-fraction conversion (ideal gas, dry-air basis):
-  n_moist = PA [Pa] / (R × T [K])        total molar density [mol m⁻³]
-  n_H2O   = rhov [g m⁻³] / 18.015       H2O molar density   [mol m⁻³]
-  n_dry   = n_moist − n_H2O              dry-air molar density [mol m⁻³]
-  H2O     = (n_H2O / n_dry) × 1000      [mmol mol⁻¹ dry air]
-  CO2     = (rCO2 [mg m⁻³] / 44010) / n_dry × 1e6   [µmol mol⁻¹ dry air]
+_IU qualifier (AmeriFlux):
+  Applied to H2O and CO2 because they are submitted in density units (g m⁻³, mg m⁻³)
+  rather than the AmeriFlux standard mole-fraction units (mmol mol⁻¹, µmol mol⁻¹).
+  Per AmeriFlux documentation, use of _IU in HF uploads should be discussed with the
+  data team (ameriflux-support@lbl.gov) before submission.
 
-Unit notes:
-  rhov:    g m⁻³  in both Python and MATLAB pkl
-  rhoCO2:  mg m⁻³ in Python pkl  (MATLAB stores kg m⁻³; see fluxes.py comment)
+Unit notes — Python pkl convention:
+  rhov:    g m⁻³   in both Python and MATLAB pkl
+  rhoCO2:  mg m⁻³  in Python pkl  (MATLAB stores kg m⁻³; see fluxes.py comment)
 
 Missing data: -9999  (NaN and ±Inf replaced before writing)
 """
@@ -57,9 +52,6 @@ OUT_DIR = os.path.join(ROOT_PY, "ameriflux_hf_output")
 PF_TYPE = "GPF"       # "LPF" or "GPF"
 MISSING = -9999.0
 
-R_GAS        = 8.314    # universal gas constant [J mol⁻¹ K⁻¹]
-MW_H2O       = 18.015   # g mol⁻¹
-MW_CO2       = 44.010   # g mol⁻¹
 MATLAB_EPOCH = 719529.0 # MATLAB days to Unix epoch (1970-01-01)
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -83,35 +75,6 @@ def file_ts(t_val, offset_s=0.0):
 def safe(arr):
     """Replace NaN / ±Inf with MISSING (-9999)."""
     return np.where(np.isfinite(arr), arr, MISSING)
-
-
-def density_to_molefrac(rhov_gm3, rco2_mgm3, T_K, PA_Pa):
-    """Convert gas densities to dry mole fractions via ideal gas law.
-
-    Parameters
-    ----------
-    rhov_gm3   : ndarray  water vapour density  [g m⁻³]
-    rco2_mgm3  : ndarray  CO2 density           [mg m⁻³]
-    T_K        : ndarray  sonic temperature      [K]
-    PA_Pa      : ndarray  air pressure           [Pa]
-
-    Returns
-    -------
-    h2o_mmol   : ndarray  H2O dry mole fraction  [mmol mol⁻¹]
-    co2_umol   : ndarray  CO2 dry mole fraction  [µmol mol⁻¹]
-    """
-    valid = np.isfinite(T_K) & (T_K > 200) & np.isfinite(PA_Pa) & (PA_Pa > 1e4)
-    n_moist = np.full_like(T_K, np.nan)
-    n_moist[valid] = PA_Pa[valid] / (R_GAS * T_K[valid])   # mol m⁻³
-
-    n_H2O = rhov_gm3 / MW_H2O                              # mol m⁻³
-    n_dry = n_moist - n_H2O
-    # Guard against non-positive n_dry
-    n_dry = np.where(n_dry > 0.1, n_dry, np.nan)
-
-    h2o_mmol = safe(n_H2O / n_dry * 1e3)                   # mmol mol⁻¹
-    co2_umol = safe((rco2_mgm3 / (MW_CO2 * 1e3)) / n_dry * 1e6)  # µmol mol⁻¹
-    return h2o_mmol, co2_umol
 
 
 # ── main ───────────────────────────────────────────────────────────────────────
@@ -162,22 +125,14 @@ for pkl_path in raw_pkls:
     sorted_z = sorted(z)
     v_of     = {zi: sorted_z.index(zi) + 1 for zi in z}
 
-    # ── convert to AmeriFlux units (full 48-h array, vectorised) ─────────────
-    T_K   = safe(Ts_C) + 273.15     # °C → K  (use first sonic column for conversion)
-    PA_Pa = safe(P_kPa) * 1e3       # kPa → Pa
-
-    # Pre-compute mole fractions per sonic using per-height T and shared PA
-    h2o_out = np.full_like(rhov, MISSING)
-    co2_out = np.full_like(rCO2, MISSING)
-    for si in range(n_sonics):
-        T_si = safe(Ts_C[:, si]) + 273.15
-        h2o_out[:, si], co2_out[:, si] = density_to_molefrac(
-            safe(rhov[:, si]), safe(rCO2[:, si]), T_si, PA_Pa)
-
-    u_out  = safe(uPF)
-    v_out  = safe(vPF)
-    w_out  = safe(wPF)
-    ts_out = safe(Ts_C) + 273.15    # K
+    # ── prepare output arrays (no unit conversion needed for _IU variables) ──
+    u_out   = safe(uPF)
+    v_out   = safe(vPF)
+    w_out   = safe(wPF)
+    ts_out  = safe(Ts_C)        # °C  (standard)
+    pa_out  = safe(P_kPa)       # kPa (standard)
+    h2o_out = safe(rhov)        # g m⁻³   (_IU)
+    co2_out = safe(rCO2)        # mg m⁻³  (_IU)
 
     # ── build column names ────────────────────────────────────────────────────
     col_names = ["TIMESTAMP"]
@@ -186,8 +141,8 @@ for pkl_path in raw_pkls:
         col_names += [
             f"U_1_{v}_1", f"V_1_{v}_1", f"W_1_{v}_1",
             f"T_SONIC_1_{v}_1",
-            f"H2O_1_{v}_1",
-            f"CO2_1_{v}_1",
+            f"H2O_IU_1_{v}_1",
+            f"CO2_IU_1_{v}_1",
         ]
     col_names.append("PA_1_1_1")
 
@@ -202,13 +157,13 @@ for pkl_path in raw_pkls:
         data = {"TIMESTAMP": make_timestamps(t_blk)}
         for si, zi in enumerate(z):
             v = v_of[zi]
-            data[f"U_1_{v}_1"]       = u_out[s0:s1, si]
-            data[f"V_1_{v}_1"]       = v_out[s0:s1, si]
-            data[f"W_1_{v}_1"]       = w_out[s0:s1, si]
-            data[f"T_SONIC_1_{v}_1"] = ts_out[s0:s1, si]
-            data[f"H2O_1_{v}_1"]     = h2o_out[s0:s1, si]
-            data[f"CO2_1_{v}_1"]     = co2_out[s0:s1, si]
-        data["PA_1_1_1"] = PA_Pa[s0:s1]
+            data[f"U_1_{v}_1"]         = u_out[s0:s1, si]
+            data[f"V_1_{v}_1"]         = v_out[s0:s1, si]
+            data[f"W_1_{v}_1"]         = w_out[s0:s1, si]
+            data[f"T_SONIC_1_{v}_1"]   = ts_out[s0:s1, si]
+            data[f"H2O_IU_1_{v}_1"]    = h2o_out[s0:s1, si]
+            data[f"CO2_IU_1_{v}_1"]    = co2_out[s0:s1, si]
+        data["PA_1_1_1"] = pa_out[s0:s1]
 
         df = pd.DataFrame(data, columns=col_names)
 
