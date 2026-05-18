@@ -65,6 +65,7 @@ def find_files(
         for key in ["sonicOrientation", "sonicManufact", "tower", "siteElevation",
                     "tableNames", "tableScanFrequency", "tableNumberOfColumns", "angle",
                     "useTrefHMP", "avgSlowFreq", "shiftzRef", "zRefLowestSon", "ascending",
+                    "shiftsSonHeight", "shiftsHMPHeight",
                     "SSITC_subAvgMin", "displacementHeight", "canopyHeight", "useCanopyITC"]:
             if key in _ns:
                 info[key] = _ns[key]

@@ -340,6 +340,29 @@ def fluxes(
             theta_son = T_son + Gamma * (height - z_ref)
             # theta_son_air is computed after q_ref_fast_local is set (uses level-specific q)
 
+            # ---- height-specific pressure (use co-located IRGASON P if available) ----
+            P_kPa_avg_lev = P_kPa_avg
+            P_raw_hf_lev  = P_raw_hf
+            P_t_hf_lev    = P_t_hf
+            if "P" in sensor_info:
+                p_rows_lev = np.abs(sensor_info["P"][:, 2] - height) < 0.5
+                if p_rows_lev.any():
+                    p_tbl_lev = int(sensor_info["P"][p_rows_lev, 0][0])
+                    p_col_lev = int(sensor_info["P"][p_rows_lev, 1][0])
+                    P_raw_lev = data[p_tbl_lev][:, p_col_lev].copy()
+                    P_t_lev   = data[p_tbl_lev][:, 0]
+                    if np.nanmedian(P_raw_lev) > 200:
+                        P_raw_lev /= 10.0
+                    P_avg_mat_lev = simple_avg(
+                        np.column_stack([P_raw_lev, P_t_lev]),
+                        info["avgPer"], return_timestamps=False)
+                    P_lev_check = P_avg_mat_lev[:, 0]
+                    if (np.nansum(~np.isnan(P_lev_check)) > 0 and
+                            np.abs((np.nanmedian(P_lev_check) - P_ref_kPa) / P_ref_kPa) < 0.05):
+                        P_kPa_avg_lev = P_lev_check
+                        P_raw_hf_lev  = P_raw_lev
+                        P_t_hf_lev    = P_t_lev
+
             # ---- level-specific humidity (useTrefHMP path) ----
             q_ref_fast_local = q_ref_fast.copy()
             virtual_theta_avg_local = None
@@ -363,10 +386,19 @@ def fluxes(
                                         freq_slow, return_timestamps=True)
                     ts1 = T1_mat[:, -1]
                     P_slow = np.interp(ts1,
-                                       np.linspace(t.min(), t.max(), len(P_kPa_avg)),
-                                       P_kPa_avg)
+                                       np.linspace(t.min(), t.max(), len(P_kPa_avg_lev)),
+                                       P_kPa_avg_lev)
+                    # If shiftsSonHeight is set, use the paired physical HMP height
+                    # for the altitude correction instead of the sonic height.
+                    level_height = height
+                    for _sh, _hh in zip(info.get("shiftsSonHeight", []),
+                                        info.get("shiftsHMPHeight", [])):
+                        if abs(height - _sh) < 0.01:
+                            level_height = _hh
+                            break
+
                     vt_slow, r_slow, rho_moist_slow, rho_dry_slow, rho_H2O_slow = \
-                        get_virtual_pot_temp(altitude, height - z_ref,
+                        get_virtual_pot_temp(altitude, level_height - z_ref,
                                              T1_mat[:, 0], RH1_mat[:, 0],
                                              P_slow, use_p_elevation=False)
 
@@ -391,7 +423,7 @@ def fluxes(
                     T_avg_30_K = T_avg_30_mat[:, 0].copy()
                     if np.nanmedian(T_avg_30_K) < 200:
                         T_avg_30_K = T_avg_30_K + 273.15
-                    q_avg_30 = rh_to_spec_hum(RH_avg_30_mat[:, 0], P_kPa_avg,
+                    q_avg_30 = rh_to_spec_hum(RH_avg_30_mat[:, 0], P_kPa_avg_lev,
                                               T_avg_30_K)  # kg/kg, 30-min
                     valid_q = ~np.isnan(q_avg_30)
                     if valid_q.any():
@@ -986,11 +1018,11 @@ def fluxes(
                                     + rho_CO2_avg * (1.0 + Md / Mv * rho_v_j / rho_d_j)
                                     * TairP / T_ref_j)
 
-                        # ppm CO2 (period mean) — use per-sample pressure, matching MATLAB
-                        if P_raw_hf is not None:
-                            P_seg_kPa = np.interp(t[s0:s1], P_t_hf, P_raw_hf)
-                        elif jj < len(P_kPa_avg):
-                            P_seg_kPa = np.full(s1 - s0, P_kPa_avg[jj])
+                        # ppm CO2 (period mean) — use height-specific per-sample pressure
+                        if P_raw_hf_lev is not None:
+                            P_seg_kPa = np.interp(t[s0:s1], P_t_hf_lev, P_raw_hf_lev)
+                        elif jj < len(P_kPa_avg_lev):
+                            P_seg_kPa = np.full(s1 - s0, P_kPa_avg_lev[jj])
                         else:
                             P_seg_kPa = np.full(s1 - s0, P_ref_kPa)
                         ppm_CO2 = np.nanmean(rho_CO2_seg * 1000.0 * 8.314

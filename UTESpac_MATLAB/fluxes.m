@@ -466,7 +466,16 @@ try
                     T1min = simpleAvg([data{1,Ttble}(:,Tcol), data{1,Ttble}(:,1)],info.avgSlowFreq,0);
                     RH1min = simpleAvg([data{1,RHtble}(:,RHcol), data{1,RHtble}(:,1)],info.avgSlowFreq,0);
                     Timestamp1min = simpleAvg([data{1,RHtble}(:,1), data{1,RHtble}(:,1)],info.avgSlowFreq,0);
-                    [virtualThetaSlowFreq, rSlowFreq, rho_airmoistSlowFreq, rho_airdrySlowFreq, rho_H2OSlowFreq] = get_virtulPotTemp(info.siteElevation, sonHeight - zRef, T1min, RH1min, PsonSlowFreq, false);
+                    levelHeight = sonHeight;
+                    if isfield(info,'shiftsSonHeight') % manual shifts to HMP height
+                        for shifti=1:length(info.shiftsSonHeight)
+                            if abs(sonHeight - info.shiftsSonHeight(shifti)) < 0.01 
+                                levelHeight = info.shiftsHMPHeight(shifti);
+                                break
+                            end
+                        end
+                    end
+                    [virtualThetaSlowFreq, rSlowFreq, rho_airmoistSlowFreq, rho_airdrySlowFreq, rho_H2OSlowFreq] = get_virtulPotTemp(info.siteElevation, levelHeight - zRef, T1min, RH1min, PsonSlowFreq, false);
                     virtualThetaAvg = simpleAvg([virtualThetaSlowFreq, Timestamp1min],info.avgPer,0); % K
                     rAvg = simpleAvg([rSlowFreq, Timestamp1min],info.avgPer,0); % g/kg, unsaturated mixing ratio
                     rho_airmoistAvg = simpleAvg([rho_airmoistSlowFreq, Timestamp1min],info.avgPer,0); % density of moist air (kg/m^3)
@@ -881,7 +890,7 @@ try
 
                 if info.calcDissipation
                     % find dissipation rate of TKE
-                    epsilon(jj,1+ii) = calc_dissipation_rate(uPF_P, mean(uPF(bp(jj)+1:bp(jj+1)), 'omitmissing'), 1./info.tableScanFrequency); epsilonHeader{1+ii} = strcat(num2str(sonHeight),"m :epsilon");
+                    epsilon(jj,1+ii) = calc_dissipation_rate(uPF_P, mean(uPF(bp(jj)+1:bp(jj+1)), 'omitmissing'), 1./info.tableScanFrequency(tble)); epsilonHeader{1+ii} = strcat(num2str(sonHeight),"m :epsilon");
                     if rotatedSonFlag(jj); epsilon(jj,1+ii) = nan; end;
                 end
 
@@ -1203,20 +1212,11 @@ try
                         sigma(jj,12+(ii-1)*numSigmaVariables) = std(rho_CO2(bp(jj)+1:bp(jj+1)), 'omitmissing'); sigmaHeader{12+(ii-1)*numSigmaVariables} = strcat(num2str(sonHeight),'m :sigma_CO2');
                         if TsonFlag(jj) || rotatedSonFlag(jj); sigma(jj,12+(ii-1)*numSigmaVariables) = nan; end;
 
-                        sigma(jj,13+(ii-1)*numSigmaVariables) = std(rho_CO2(bp(jj)+1:bp(jj+1))+rhoc_externalp, 'omitmissing'); sigmaHeader{13+(ii-1)*numSigmaVariables} = strcat(num2str(sonHeight),'m :sigma_CO2_WPL');
+                        sigma(jj,13+(ii-1)*numSigmaVariables) = std(rho_CO2(bp(jj)+1:bp(jj+1))+rhoc_externalp.*1e6, 'omitmissing'); sigmaHeader{13+(ii-1)*numSigmaVariables} = strcat(num2str(sonHeight),'m :sigma_CO2_WPL');
                         if TsonFlag(jj) || rotatedSonFlag(jj); sigma(jj,13+(ii-1)*numSigmaVariables) = nan; end;
 
                 
                         % store CO2P in raw structure
-                        % Unit convention (MATLAB vs Python difference):
-                        %   rhoCO2             mg/m^3  in both MATLAB and Python
-                        %   rhoCO2Prime        kg/m^3  in MATLAB (rho_CO2p is already /1e6)
-                        %                      mg/m^3  in Python  (Python reconverts: rho_CO2p * 1e6)
-                        %   rhoCO2extenalPrime kg/m^3  in MATLAB
-                        %                      mg/m^3  in Python
-                        % The WPL computation uses kg/m^3 internally; MATLAB stores the
-                        % WPL-ready value directly.  Python converts back to mg/m^3 for
-                        % unit consistency with rhoCO2 and rhov/rhovPrime.
                         if info.saveRawConditionedData
                             raw.rhoCO2Prime(bp(jj)+1:bp(jj+1),CO2sensorNumber) = rho_CO2p; % kg/m^3
                             raw.rhoCO2extenalPrime(bp(jj)+1:bp(jj+1),CO2sensorNumber) = rhoc_externalp; % kg/m^3
