@@ -19,18 +19,6 @@ settings, and output options, then run:
 python3 utespac_main.py
 ```
 
-## Validation test suite
-
-Runs the pipeline on `siteFire1` and compares output against the MATLAB reference files in
-`UTESpac_MATLAB/siteFire1/output/`.  Defaults to GPF mode (the mode used for analyses and
-AmeriFlux submission).
-
-```bash
-python3 run_test.py              # GPF averaged + raw (default)
-python3 run_test.py --lpf        # local planar fit only
-python3 run_test.py --compare    # compare existing GPF .pkl output without re-running
-```
-
 ---
 
 ## Utility scripts
