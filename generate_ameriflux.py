@@ -253,8 +253,7 @@ for v_idx, height in enumerate(EC_HEIGHTS, start=1):
         return site_col(src, arr_key, hdr_key, pattern, hi)
 
     # ---- wind sector flag (1 = tower-disturbed, 0 = clean) ----
-    wd_flag    = _col("spdAndDir", "spdAndDirHeader", f"{hn}m flag")
-    bad_sector = np.isfinite(wd_flag) & (wd_flag != 0)
+    wd_flag = _col("spdAndDir", "spdAndDirHeader", f"{hn}m flag")
 
     # ---- density / thermodynamic terms from specificHum ----
     if "specificHum" in src:
@@ -356,13 +355,8 @@ for v_idx, height in enumerate(EC_HEIGHTS, start=1):
 
     df[f"CO2_1_{v_idx}_1"] = _col("CO2flux", "CO2fluxHeader", f"{hn}m: CO2 (ppm)")
 
-    # ---- WD_FILTER and wind-sector masking ----
+    # ---- WD_FILTER: report only, no masking (same treatment as SSITC flags) ----
     df[f"WD_FILTER_1_{v_idx}_1"] = wd_flag.astype(float)
-    for flux_c in [f"H_1_{v_idx}_1", f"LE_1_{v_idx}_1", f"FC_1_{v_idx}_1",
-                   f"USTAR_1_{v_idx}_1", f"TAU_1_{v_idx}_1"]:
-        vals = df[flux_c].values.astype(float)
-        vals[bad_sector] = np.nan
-        df[flux_c] = vals
 
     # ---- SSITC quality flags ----
     for flag_var in ("TAU", "H", "LE", "FC"):
