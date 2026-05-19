@@ -281,7 +281,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--recalculateGlobalCoefficients",
         type=lambda x: x.lower() not in ("false", "0", "no"),
-        default=True,
+        default=info["PF"]["recalculateGlobalCoefficients"],
         metavar="{true,false}",
         help="Recompute GPF coefficients (default: true). "
              "Pass 'false' to reuse existing PFinfo.",
