@@ -62,8 +62,10 @@ def matlab_to_unix(t_arr):
 
 def make_timestamps(t_arr):
     """Vectorised MATLAB serial → 'YYYYMMDDHHMMSS.cc' pandas Series."""
-    dti = pd.to_datetime(matlab_to_unix(t_arr), unit="s")
-    cs  = (dti.microsecond // 10000).astype(str).str.zfill(2)
+    unix_s = matlab_to_unix(t_arr)
+    dti    = pd.to_datetime(unix_s, unit="s")
+    # compute centiseconds from float — pd.microsecond has rounding error in pandas 3.x
+    cs     = pd.Index(np.round((unix_s % 1.0) * 100).astype(int)).astype(str).str.zfill(2)
     return dti.strftime("%Y%m%d%H%M%S") + "." + cs
 
 
