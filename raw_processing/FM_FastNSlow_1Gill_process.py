@@ -269,13 +269,17 @@ while curr_date <= end_date - timedelta(days=2):
                                f"{d.strftime('%Y-%m-%d')}-000000-daqm*")
         day_files.extend(glob.glob(pattern))
 
-    # 10-Hz files: 96 half-hour files for 48 hours
+    # 10-Hz files: 96 half-hour files for 48 hours.
+    # Two naming conventions exist across periods:
+    #   older: _smart3-00536_raw.data
+    #   newer: _smart3-00536.data
     hour_files = []
     for i in range(96):
         h = curr_date + timedelta(minutes=30 * i)
-        fname = os.path.join(unzipfile_dir,
-                             f"{h.strftime('%Y-%m-%dT%H%M%S')}_smart3-00536_raw.data")
-        hour_files.extend(glob.glob(fname))
+        ts = h.strftime('%Y-%m-%dT%H%M%S')
+        for suffix in ("_smart3-00536_raw.data", "_smart3-00536.data"):
+            found = glob.glob(os.path.join(unzipfile_dir, ts + suffix))
+            hour_files.extend(found)
 
     if not hour_files:
         print(f"Skipping {curr_date.date()}: missing 10-Hz files.")
