@@ -1,3 +1,7 @@
+# ── Site folders excluded from tracking ──────────────────────────────────────
+UTESpac_MATLAB/siteFire1/
+UTESpac_MATLAB/siteFire2/
+
 # ── Raw data files (in site folders) ─────────────────────────────────────────
 site*/*.txt
 site*/*.dat
