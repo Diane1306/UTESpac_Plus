@@ -23,9 +23,6 @@ __pycache__/
 *.pyo
 *.pyd
 
-# ── Raw data processing scripts (site-specific paths, not for version control) ─
-raw_processing/
-
 # ── Comparison logs ────────────────────────────────────────────────────────────
 comparison_logs/
 

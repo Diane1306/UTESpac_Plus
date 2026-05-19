@@ -1,0 +1,364 @@
+"""FM_FastNSlow_1Gill_process.py
+Process LICOR/Gill 50 m data (10-Hz fast + 1-min slow) into 48-h UTESpac-ready files.
+
+Steps:
+  1. Optionally unzip LICOR daqm archives (see commented block below)
+  2. Load 1-min daqm stats files (LICOR slow: T/RH at 15/30/51.5 m)
+  3. Load 10-Hz raw Gill/LI-7500 files
+  4. Load FM_DOL_1min processed files to obtain T/RH at 6.35 m (if available)
+  5. Write two output files per 48-h period:
+       FMDOL_10Hz_*.txt  — 10-Hz fast channels only (13 cols)
+       FMDOL_1min_*.txt  — native 1-min T/RH at 51.5/30/15/6.35 m (12 cols)
+
+IMPORTANT: Lab Library paths are READ-ONLY. Output is written to
+           UTESpac_Python/siteGill<start>_<end>/ only.
+"""
+
+import os
+import glob
+import platform
+import numpy as np
+import pandas as pd
+from zipfile import ZipFile
+from datetime import datetime, timedelta
+
+# ── paths ─────────────────────────────────────────────────────────────────────
+
+ROOT_PY = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # UTESpac_Python/
+
+if platform.system() == "Darwin":
+    box_path = os.path.expanduser("~/Library/CloudStorage/Box-Box")
+else:  # Windows
+    box_path = os.path.expanduser("~/Box")
+
+# READ-ONLY: raw LICOR daqm zip archives
+# Sep-Oct 2025 zip archives are not in Lab Library; data is already unzipped
+# in unzipfile_dir below. Update this path before uncommenting the unzip block.
+licor_zipfile_dir = os.path.join(
+    box_path, "Diane", "French Meadows", "data", "DOL_zipped",
+    "20250901-20251110")
+
+# Folder containing unzipped daqm files
+unzipfile_dir = os.path.join(
+    box_path, "Diane", "French Meadows", "data", "DOL_unziped",
+    "20250901-20251110")
+
+# READ-ONLY: processed 1-min combined data (FM_1min_data_process.py output)
+# Contains Temp_6.35 / RH_6.35 from the Campbell CR1000X system.
+FM_1min_dir = os.path.join(
+    box_path, "Lab Library", "French Meadows", "Summer2025",
+    "data", "processed", "FM_DOL_1min")
+
+# ── date range to process ─────────────────────────────────────────────────────
+# Modify these two lines for each processing run.
+start_date = datetime(2025, 9, 1)
+end_date   = datetime(2025, 10, 7)
+
+# Output site folder (created automatically)
+site_folder_name = f"siteGill{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}"
+FM_processed_dir = os.path.join(ROOT_PY, site_folder_name)
+os.makedirs(FM_processed_dir, exist_ok=True)
+print(f"Output → {FM_processed_dir}")
+
+# ── optional: unzip daqm archives ─────────────────────────────────────────────
+# Uncomment and adjust to extract raw daqm files for the relevant date range.
+# moni = [7, 8]
+# daylength = [9, 28]
+# for mi in range(len(moni)):
+#     for di in range(daylength[mi]):
+#         day = 23 + di if moni[mi] == 7 else 1 + di
+#         zipfile = os.path.join(licor_zipfile_dir,
+#                                f"2025-{moni[mi]:02}-{day:02}-000000-daqm.zip")
+#         if os.path.exists(zipfile):
+#             with ZipFile(zipfile, "r") as z:
+#                 z.extractall(unzipfile_dir)
+#         else:
+#             print(f"Missing: {zipfile}")
+
+# ── timestamp validator ───────────────────────────────────────────────────────
+
+def _validate_fast(df, expected_date, expected_hz, label):
+    """Check date alignment, sampling frequency, and coverage of fast data.
+
+    Returns True if all checks pass; prints a SKIP message and returns False
+    if any check fails so the caller can skip the period.
+    """
+    if df is None or len(df) < 2:
+        print(f"  SKIP {label}: fast data is empty.")
+        return False
+
+    first_date = df.index[0].date()
+    if first_date != expected_date.date():
+        print(f"  SKIP {label}: first timestamp {first_date} ≠ expected {expected_date.date()}. "
+              f"Check file selection / unzip folder.")
+        return False
+
+    intervals_s = np.diff(df.index[:min(200, len(df))].asi8) / 1e9
+    dt_s        = float(np.median(intervals_s))
+    if dt_s <= 0:
+        print(f"  SKIP {label}: cannot determine sampling frequency (dt={dt_s:.4f} s).")
+        return False
+    hz_actual = round(1.0 / dt_s)
+    if hz_actual != expected_hz:
+        print(f"  SKIP {label}: measured {hz_actual} Hz ≠ expected {expected_hz} Hz "
+              f"(median dt = {dt_s:.4f} s).")
+        return False
+
+    expected_rows = expected_hz * 48 * 3600
+    coverage      = len(df) / expected_rows
+    if coverage < 0.10:
+        print(f"  SKIP {label}: only {coverage:.0%} coverage "
+              f"({len(df):,} / {expected_rows:,} expected rows).")
+        return False
+
+    print(f"  Timestamps OK: starts {df.index[0]}, {hz_actual} Hz, "
+          f"{len(df):,} rows ({coverage:.0%} of 48 h)")
+    return True
+
+
+# ── data loaders ──────────────────────────────────────────────────────────────
+
+def load_1min_daqm(day_files):
+    """Load LICOR daqm 1-min statistics files (T/RH at 15/30/51.5 m)."""
+    dfs = []
+    for f in day_files:
+        df = pd.read_csv(f, sep=r"\s+", engine="python", header=0, skiprows=[1])
+        df["TIMESTAMP"] = pd.to_datetime(df["DATE"] + " " + df["TIME"])
+        df.set_index("TIMESTAMP", inplace=True)
+        dfs.append(df)
+    return pd.concat(dfs, axis=0)
+
+
+def load_10hz(hour_files):
+    """Load 10-Hz raw Gill/LI-7500 .data files."""
+    headers = [
+        "DATAH", "Seconds", "Nanoseconds", "Sequence Number",
+        "Diagnostic Value", "Diagnostic Value 2", "DS Diagnostic Value",
+        "Date", "Time", "CO2 Absorptance", "H2O Absorptance",
+        "CO2 (mmol/m^3)", "CO2 (mg/m^3)", "H2O (mmol/m^3)", "H2O (g/m^3)",
+        "Temperature (C)", "Pressure (kPa)",
+        "---1", "---2", "---3", "---4",
+        "Cooler Voltage (V)", "Chopper Cooler Voltage (V)",
+        "Vin SmartFlux (V)", "CO2 (umol/mol)", "H2O (mmol/mol)",
+        "Dew Point (C)", "CO2 Signal Strength", "H2O Sample",
+        "H2O Reference", "CO2 Sample", "CO2 Reference",
+        "HIT Power (W)", "Vin HIT (V)", "Vin DSI (V)",
+        "U (m/s)", "V (m/s)", "W (m/s)", "T (C)",
+        "Anemometer Diagnostics", "CHK",
+    ]
+    dfs = []
+    for f in hour_files:
+        df = pd.read_csv(f, sep=r"\s+", header=None, names=headers,
+                         skiprows=list(range(8)))
+        ts_temp = df["Date"] + " " + df["Time"]
+        ts_fixed = [t.rsplit(":", 1)[0] + "." + t.rsplit(":", 1)[1]
+                    for t in ts_temp]
+        df["TIMESTAMP"] = pd.to_datetime(ts_fixed)
+        df.set_index("TIMESTAMP", inplace=True)
+        dfs.append(df)
+    return pd.concat(dfs, axis=0)
+
+
+def load_fm1min_range(fm1min_dir, start_dt, end_dt):
+    """Load FM_DOL_1min processed files covering start_dt..end_dt.
+
+    Returns a DataFrame with a datetime index, or None if no files found.
+    These files contain Temp_6.35 / RH_6.35 from the Campbell CR1000X.
+    READ-ONLY access to Lab Library.
+    """
+    dfs = []
+    curr = start_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    while curr < end_dt:
+        pattern = os.path.join(fm1min_dir,
+                               f"FM_DOL_1min_{curr.strftime('%Y%m%d')}*.txt")
+        for fp in sorted(glob.glob(pattern)):
+            try:
+                df = pd.read_csv(fp, header=0)
+                def _make_ts(row):
+                    hm  = int(row["HM"])
+                    h   = hm // 100;  m = hm % 100
+                    sec = int(float(row.get("second", 0)))
+                    return (datetime(int(row["year"]), 1, 1)
+                            + timedelta(days=int(row["day"]) - 1,
+                                        hours=h, minutes=m, seconds=sec))
+                df["TIMESTAMP"] = df.apply(_make_ts, axis=1)
+                df.set_index("TIMESTAMP", inplace=True)
+                dfs.append(df)
+            except Exception as exc:
+                print(f"  Warning: could not read {fp}: {exc}")
+        curr += timedelta(days=1)
+
+    if not dfs:
+        return None
+    combined = pd.concat(dfs, axis=0)
+    return combined[~combined.index.duplicated(keep="first")]
+
+
+def build_48h_index(start_time, hz=10):
+    start_time = start_time + pd.Timedelta(seconds=1 / hz)
+    freq = f"{1000 / hz:.0f}ms"
+    return pd.date_range(start=start_time,
+                         end=start_time + pd.Timedelta(hours=48),
+                         freq=freq, inclusive="left")
+
+
+def load_and_align(day_files, hour_files, fm1min_dir, expected_date, hz=10):
+    """Load all sources and return grids for fast and slow output files.
+
+    Returns (None, None, None) if timestamp validation fails so the caller
+    can skip the period cleanly.
+
+    Returns:
+        df_10hz_full   — 10-Hz fast data on the 10-Hz 48-h grid
+        df_1min_native — LICOR daqm T/RH on the native 1-min 48-h grid (or None)
+        df_6m_native   — 6.35 m T/RH on the native 1-min 48-h grid (or None)
+    """
+    df_10hz = load_10hz(hour_files)
+    df_10hz = df_10hz[~df_10hz.index.duplicated(keep="first")]
+
+    if not _validate_fast(df_10hz, expected_date, hz, expected_date.date()):
+        return None, None, None
+
+    day_start = df_10hz.index[0].floor("D")
+
+    # 10-Hz grid for fast file
+    full_index_10hz = build_48h_index(day_start, hz=hz)
+    df_10hz_full    = df_10hz.reindex(full_index_10hz)
+
+    # 1-min grid shared by both slow sources
+    full_index_1min = build_48h_index(day_start, hz=1/60)
+
+    # LICOR daqm T/RH at 15/30/51.5 m — optional
+    if day_files:
+        df_1min = load_1min_daqm(day_files)
+        df_1min = df_1min[~df_1min.index.duplicated(keep="first")]
+        df_1min_native = (df_1min.reindex(full_index_1min)
+                          .apply(pd.to_numeric, errors="coerce")
+                          .interpolate(method="time", limit=2))
+    else:
+        df_1min_native = None
+        print("  LICOR daqm: no files found — T/RH at 15/30/51.5 m omitted.")
+
+    # 6.35 m T/RH from FM_DOL_1min (Campbell CR1000X) — optional
+    end_dt    = day_start + timedelta(days=2)
+    df_6m_raw = load_fm1min_range(fm1min_dir, day_start, end_dt)
+    if df_6m_raw is not None and "Temp_6.35" in df_6m_raw.columns:
+        df_6m_native = (df_6m_raw.reindex(full_index_1min)
+                        .apply(pd.to_numeric, errors="coerce")
+                        .interpolate(method="time", limit=2))
+    else:
+        df_6m_native = None
+        if df_6m_raw is None:
+            print("  6.35 m T/RH: no FM_DOL_1min files found — column omitted.")
+        else:
+            print("  6.35 m T/RH: Temp_6.35/RH_6.35 not found in FM_DOL_1min — column omitted.")
+
+    return df_10hz_full, df_1min_native, df_6m_native
+
+
+# ── main processing loop ──────────────────────────────────────────────────────
+
+hz = 10
+curr_date = start_date
+while curr_date <= end_date - timedelta(days=2):
+
+    # 1-min daqm files: day 0 and day 1 to cover the full 48-h window (day 0 → day 2).
+    day_files = []
+    for d in [curr_date, curr_date + timedelta(days=1)]:
+        pattern = os.path.join(unzipfile_dir,
+                               f"{d.strftime('%Y-%m-%d')}-000000-daqm*")
+        day_files.extend(glob.glob(pattern))
+
+    # 10-Hz files: 96 half-hour files for 48 hours
+    hour_files = []
+    for i in range(96):
+        h = curr_date + timedelta(minutes=30 * i)
+        fname = os.path.join(unzipfile_dir,
+                             f"{h.strftime('%Y-%m-%dT%H%M%S')}_smart3-00536_raw.data")
+        hour_files.extend(glob.glob(fname))
+
+    if not hour_files:
+        print(f"Skipping {curr_date.date()}: missing 10-Hz files.")
+        curr_date += timedelta(days=2)
+        continue
+    if not day_files:
+        print(f"  Warning: no LICOR daqm files for {curr_date.date()} — T/RH at 15/30/51.5 m omitted.")
+
+    print(f"Processing {curr_date.date()} …")
+    df_10hz_full, df_1min_native, df_6m_native = load_and_align(
+        day_files, hour_files, FM_1min_dir, curr_date, hz=hz)
+
+    if df_10hz_full is None:
+        curr_date += timedelta(days=2)
+        continue
+
+    # shared date strings
+    ts0      = df_10hz_full.index[0]
+    datestr1 = f"{ts0.year}{ts0.month:02d}{ts0.day:02d}"
+    datestr2 = f"{(ts0 + pd.Timedelta(hours=48)).year}" \
+               f"{(ts0 + pd.Timedelta(hours=48)).month:02d}" \
+               f"{(ts0 + pd.Timedelta(hours=48)).day:02d}"
+
+    # ── assemble 10-Hz output (fast channels only) ────────────────────────────
+    ts = df_10hz_full.index
+    df = pd.DataFrame()
+    df["year"]   = [t.year        for t in ts]
+    df["day"]    = [t.day_of_year for t in ts]
+    df["HM"]     = [int(f"{t.hour:02d}{t.minute:02d}") for t in ts]
+    df["second"] = [f"{t.second + t.microsecond/1e6:.1f}" for t in ts]
+
+    df["Ux_50"]          = df_10hz_full["U (m/s)"].values
+    df["Uy_50"]          = df_10hz_full["V (m/s)"].values
+    df["Uz_50"]          = df_10hz_full["W (m/s)"].values
+    df["T_Sonic_50"]     = df_10hz_full["T (C)"].values
+    df["diagnostic_50"]  = df_10hz_full["Anemometer Diagnostics"].values
+    df["Pressure_50"]    = df_10hz_full["Pressure (kPa)"].values
+    df["LiH2O_50"]       = df_10hz_full["H2O (mmol/m^3)"].values
+    df["LiCO2_50"]       = df_10hz_full["CO2 (mmol/m^3)"].values
+    df["Li_gas_diag_50"] = df_10hz_full["DS Diagnostic Value"].values
+
+    out_10hz = os.path.join(FM_processed_dir,
+                            f"FMDOL_{hz}Hz_{datestr1}000000_{datestr2}000000.txt")
+    df.to_csv(out_10hz, header=False, index=False, sep=",")
+    print(f"  → {os.path.basename(out_10hz)}")
+
+    # ── assemble 1-min output (only write columns that have data) ────────────
+    has_licor = df_1min_native is not None
+    has_6m    = df_6m_native   is not None
+
+    if not has_licor and not has_6m:
+        print("  1-min file skipped: no T/RH data from LICOR daqm or FM_DOL_1min.")
+    else:
+        # Use whichever index is available for the time axis
+        ref_index = df_1min_native.index if has_licor else df_6m_native.index
+        ts1 = ref_index
+        df1 = pd.DataFrame()
+        df1["year"]   = [t.year        for t in ts1]
+        df1["day"]    = [t.day_of_year for t in ts1]
+        df1["HM"]     = [int(f"{t.hour:02d}{t.minute:02d}") for t in ts1]
+        df1["second"] = [f"{t.second + t.microsecond/1e6:.0f}" for t in ts1]
+
+        if has_licor:
+            df1["Temp_51.5"] = df_1min_native["TA_1_3_1"].values
+            df1["RH_51.5"]   = df_1min_native["RH_1_3_1"].values
+            df1["Temp_30"]   = df_1min_native["TA_1_2_1"].values
+            df1["RH_30"]     = df_1min_native["RH_1_2_1"].values
+            df1["Temp_15"]   = df_1min_native["TA_1_1_1"].values
+            df1["RH_15"]     = df_1min_native["RH_1_1_1"].values
+
+        if has_6m:
+            df1["Temp_6.35"] = df_6m_native["Temp_6.35"].values
+            df1["RH_6.35"]   = df_6m_native["RH_6.35"].values
+
+        out_1min = os.path.join(FM_processed_dir,
+                                f"FMDOL_1min_{datestr1}000000_{datestr2}000000.txt")
+        df1.to_csv(out_1min, header=False, index=False, sep=",")
+        cols = (["Temp/RH_51.5+30+15"] if has_licor else []) + \
+               (["Temp/RH_6.35"]       if has_6m    else [])
+        print(f"  → {os.path.basename(out_1min)}  ({', '.join(cols)})")
+        del df1
+
+    del df
+    curr_date += timedelta(days=2)
+
+print("\nDone.")
