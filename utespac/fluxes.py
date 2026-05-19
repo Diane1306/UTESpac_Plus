@@ -220,7 +220,10 @@ def fluxes(
     N             = int(round((t[-1] - t[0]) / (info["avgPer"] / (24.0 * 60.0))))
     bp            = np.round(np.linspace(0, len(t), N + 1)).astype(int)
     has_fw        = "fw" in sensor_info
-    num_sig_vars  = 12  # always 12: col 8 = fw_sigma or theta_v, cols 9-11 = H2O, CO2, CO2_WPL
+    # MATLAB fluxes.m: numSigmaVariables = 13 when fw exists, 12 otherwise.
+    # Stride 13 leaves a NaN gap column between sonics; _trim_both removes it so
+    # the final output always has 12 meaningful columns per sonic.
+    num_sig_vars  = 13 if has_fw else 12
     num_LH_vars   = 8
     num_CO2_vars  = 5
     num_sk_vars   = 8
@@ -726,24 +729,33 @@ def fluxes(
                 sigma_mat[jj, c_sg + 5] = np.nanstd(w_pf[s0:s1])
                 sigma_mat[jj, c_sg + 6] = np.nanstd(T_son[s0:s1])
                 sigma_mat[jj, c_sg + 7] = np.nanmean(wPF_P * TsP ** 2)
+                # Per-column flagging matching MATLAB fluxes.m lines 775-799:
+                #   sigma_w uses unrotatedSonFlag (w only); sigma_Tson uses TsonFlag only.
+                #   Applying rot_flag to all 8 columns would discard valid sigma_w when
+                #   only u or v is bad, and discard valid sigma_Tson on wind spikes.
                 if rot_flag[jj]:
-                    sigma_mat[jj, c_sg:c_sg + 8] = np.nan
+                    sigma_mat[jj, c_sg]     = np.nan   # sigma_u
+                    sigma_mat[jj, c_sg + 1] = np.nan   # sigma_v
+                    sigma_mat[jj, c_sg + 3] = np.nan   # sigma_uPF
+                    sigma_mat[jj, c_sg + 4] = np.nan   # sigma_vPF
+                    sigma_mat[jj, c_sg + 5] = np.nan   # sigma_wPF
+                    sigma_mat[jj, c_sg + 7] = np.nan   # wPFP_TsonP_TsonP
+                if unrot_flag[jj]:
+                    sigma_mat[jj, c_sg + 2] = np.nan   # sigma_w (w flag only)
                 if Ts_flag[jj]:
-                    sigma_mat[jj, c_sg + 6:c_sg + 8] = np.nan
+                    sigma_mat[jj, c_sg + 6] = np.nan   # sigma_Tson (Tson flag only)
+                    sigma_mat[jj, c_sg + 7] = np.nan   # wPFP_TsonP_TsonP
 
+                # sigma_TFW at offset 12 (MATLAB col 14+(ii-1)*13) — only when fw present.
+                # sigma_Theta_v goes at offset 8 unconditionally (written below).
                 if has_fw and fw_data is not None:
-                    sigma_mat[jj, c_sg + 8] = np.nanstd(fw_data[s0:s1])
+                    sigma_mat[jj, c_sg + 12] = np.nanstd(fw_data[s0:s1])
                     if fw_flag[jj]:
-                        sigma_mat[jj, c_sg + 8] = np.nan
-                else:
-                    # col 9 (0-based) = sigma_Theta_v
-                    sigma_mat[jj, c_sg + 8] = np.nanstd(theta_son[s0:s1])
-                    if rot_flag[jj] or Ts_flag[jj]:
-                        sigma_mat[jj, c_sg + 8] = np.nan
+                        sigma_mat[jj, c_sg + 12] = np.nan
 
                 # ---- R: R(uPF'wPF', wPF'Thetav') ----
                 c_R = 1 + ii * 16
-                sigma_mat[jj, c_sg + 8] = np.nanstd(theta_son[s0:s1])   # overwrite with theta_v sigma
+                sigma_mat[jj, c_sg + 8] = np.nanstd(theta_son[s0:s1])   # sigma_Theta_v
                 R_mat[jj, c_R] = _corr(uPF_P * wPF_P, ThvP * wPF_P)
                 if Ts_flag[jj] or rot_flag[jj]:
                     R_mat[jj, c_R] = np.nan
@@ -1228,7 +1240,7 @@ def fluxes(
         ]
     # tke  (1 + 1 per sonic)
     tke_hdr = ["time"] + [f"{_h(h)}m :0.5(u'^2+v'^2+w'^2)" for h in sonic_heights]
-    # sigma  (1 + 12 per sonic)
+    # sigma  (1 + 12 per sonic without fw; 1 + 13 per sonic with fw)
     sigma_hdr = ["time"]
     for h in sonic_heights:
         hn = _h(h)
@@ -1240,6 +1252,8 @@ def fluxes(
             f"{hn}m :sigma_Theta_v",
             f"{hn}m :sigma_H2O", f"{hn}m :sigma_CO2", f"{hn}m :sigma_CO2_WPL",
         ]
+        if has_fw:
+            sigma_hdr.append(f"{hn}m :sigma_TFW")
     # R  (1 + 16 per sonic)
     R_hdr = ["time"]
     for h in sonic_heights:

@@ -62,52 +62,74 @@ def sonic_rotation(
             # ---- PLANAR FIT ----
             wind_pf = np.full((n_pts, 3), np.nan)
 
-            if info["PF"]["globalCalculation"] == "global" and pf_info is not None:
+            if info["PF"]["globalCalculation"] == "global":
+                # MATLAB sonicRotation.m lines 123-128: error when PFinfo or the
+                # height-specific field is missing, rather than silently leaving NaN.
+                if pf_info is None:
+                    raise RuntimeError(
+                        "PFinfo failed to load. Check/re-run find_global_pf."
+                    )
                 cm_key = f"cm_{round(height * 100)}"
-                if cm_key in pf_info:
-                    for date_bin_key, dir_bins_dict in pf_info[cm_key].items():
-                        # Parse date range from key, e.g. 'day_730485to730515'
-                        import re
-                        nums = re.findall(r"[\d.]+", date_bin_key)
-                        if len(nums) >= 2:
-                            d0, d1 = float(nums[0]), float(nums[1])
+                if cm_key not in pf_info:
+                    raise RuntimeError(
+                        f"PF info at {height} m does not exist. "
+                        "Check/re-run find_global_pf."
+                    )
+                # MATLAB sonicRotation.m lines 37-40: on the first sonic, append
+                # all PFinfo.infoString columns to dataInfo so they are preserved
+                # in the output pkl via save_data.
+                if ii == 0 and "infoString" in pf_info:
+                    for info_col in pf_info["infoString"]:
+                        data_info.append(list(info_col))
+                for date_bin_key, dir_bins_dict in pf_info[cm_key].items():
+                    # Parse date range from key, e.g. 'day_730485to730515'
+                    import re
+                    nums = re.findall(r"[\d.]+", date_bin_key)
+                    if len(nums) >= 2:
+                        d0, d1 = float(nums[0]), float(nums[1])
+                    else:
+                        d0, d1 = t[0], t[-1]
+
+                    date_mask = np.zeros(n_pts, dtype=bool)
+                    # d1 is integer midnight; use < d1+1 so the whole last day is covered
+                    date_mask[(t >= d0) & (t < d1 + 1)] = True
+
+                    # Expand dir_avg to high-frequency
+                    reps = n_pts // len(dir_avg)
+                    if reps > 0:
+                        dir_hf = np.repeat(dir_avg, reps)[:n_pts]
+                    else:
+                        dir_hf = np.interp(np.arange(n_pts),
+                                           np.linspace(0, n_pts - 1, len(dir_avg)),
+                                           dir_avg)
+
+                    for dir_bin_key, coef in dir_bins_dict.items():
+                        nums2 = re.findall(r"[\d.]+", dir_bin_key)
+                        if len(nums2) >= 2:
+                            d_lo, d_hi = float(nums2[0]), float(nums2[1])
                         else:
-                            d0, d1 = t[0], t[-1]
+                            d_lo, d_hi = 0.0, 360.0
 
-                        date_mask = np.zeros(n_pts, dtype=bool)
-                        # d1 is integer midnight; use < d1+1 so the whole last day is covered
-                        date_mask[(t >= d0) & (t < d1 + 1)] = True
-
-                        # Expand dir_avg to high-frequency
-                        reps = n_pts // len(dir_avg)
-                        if reps > 0:
-                            dir_hf = np.repeat(dir_avg, reps)[:n_pts]
+                        # MATLAB sonicRotation.m lines 101-103: when d_lo == d_hi
+                        # (single-sector key "degrees_0_to_0"), use all directions.
+                        # Python's old else-branch gave (dir>0)|(dir<0), excluding
+                        # the exact value 0.
+                        if d_lo == d_hi:
+                            dir_mask = np.ones(n_pts, dtype=bool)
+                        elif d_hi > d_lo:
+                            dir_mask = (dir_hf > d_lo) & (dir_hf < d_hi)
                         else:
-                            dir_hf = np.interp(np.arange(n_pts),
-                                               np.linspace(0, n_pts - 1, len(dir_avg)),
-                                               dir_avg)
+                            dir_mask = (dir_hf > d_lo) | (dir_hf < d_hi)
 
-                        for dir_bin_key, coef in dir_bins_dict.items():
-                            nums2 = re.findall(r"[\d.]+", dir_bin_key)
-                            if len(nums2) >= 2:
-                                d_lo, d_hi = float(nums2[0]), float(nums2[1])
-                            else:
-                                d_lo, d_hi = 0.0, 360.0
+                        row_mask = date_mask & dir_mask
+                        if not row_mask.any():
+                            continue
 
-                            if d_hi > d_lo:
-                                dir_mask = (dir_hf > d_lo) & (dir_hf < d_hi)
-                            else:
-                                dir_mask = (dir_hf > d_lo) | (dir_hf < d_hi)
-
-                            row_mask = date_mask & dir_mask
-                            if not row_mask.any():
-                                continue
-
-                            # MATLAB sonicRotation uses localCoef(1) and localCoef(2)
-                            # (1-indexed), i.e. Python indices [0] and [1] = [b0, b1_stored]
-                            b1, b2 = float(coef[0]), float(coef[1])
-                            P = _build_pf_matrix(b1, b2)
-                            wind_pf[row_mask, :] = (P @ np.column_stack([u[row_mask], v[row_mask], w[row_mask]]).T).T
+                        # MATLAB sonicRotation uses localCoef(1) and localCoef(2)
+                        # (1-indexed), i.e. Python indices [0] and [1] = [b0, b1_stored]
+                        b1, b2 = float(coef[0]), float(coef[1])
+                        P = _build_pf_matrix(b1, b2)
+                        wind_pf[row_mask, :] = (P @ np.column_stack([u[row_mask], v[row_mask], w[row_mask]]).T).T
 
             else:
                 # LOCAL planar fit

@@ -425,6 +425,7 @@ try
             TsonFlag = logical(TsNanFlag+TsSpikeFlag);
 
             % find sonic pressure: Diane
+            PsonAvg = PkPaAvg;
             if isfield(sensorInfo,'P')
                 Pson = data{1,tble}(:,PCol);
                 % ensure that Pressure is in kPa
@@ -432,6 +433,7 @@ try
                     Pson = Pson./10;
                 end
                 PsonSlowFreq = simpleAvg([Pson, data{1,tble}(:,1)],info.avgSlowFreq,0); % compute pressure at HMP freq
+                PsonAvg      = simpleAvg([Pson, data{1,tble}(:,1)],info.avgPer,     0); % ← ADD: 30-min avg for q
             end
             
             % find fw
@@ -494,7 +496,7 @@ try
                 end
                 
                 % find qRefLocal and qRefFastLocal
-                qRefavgLocal = RHtoSpecHum(RHavg,PkPaAvg,Tavg);
+                qRefavgLocal = RHtoSpecHum(RHavg, PsonAvg, Tavg);   % ← was PkPaAvg; qRefavgLocal = RHtoSpecHum(RHavg,PkPaAvg,Tavg);
                 x = RHavg_t(~isnan(qRefavgLocal));
                 if isempty(x)  % if all NaNs, use qRef (non-local)
                     qRefFastLocal = qRefFast;
@@ -759,10 +761,10 @@ try
                 
                 % find standard deviations of wind vector, sonic and finewire temperature
                 if ~isempty(fw) % check for fw first
-                    numSigmaVariables = 9;
-                    
-                    sigma(jj,10+(ii-1)*numSigmaVariables) = std(fw(bp(jj)+1:bp(jj+1)), 'omitmissing'); sigmaHeader{10+(ii-1)*numSigmaVariables} = strcat(num2str(sonHeight),'m :sigma_TFW');
-                    if fwFlag(jj); sigma(jj,10+(ii-1)*numSigmaVariables) = nan; end;
+                    % numSigmaVariables = 9;
+                    numSigmaVariables = 13; % Diane added 4 columns for theta_v, q, CO2, CO2_WPL
+                    sigma(jj,14+(ii-1)*numSigmaVariables) = std(fw(bp(jj)+1:bp(jj+1)), 'omitmissing'); sigmaHeader{14+(ii-1)*numSigmaVariables} = strcat(num2str(sonHeight),'m :sigma_TFW');
+                    if fwFlag(jj); sigma(jj,14+(ii-1)*numSigmaVariables) = nan; end;
                     
                 else
                     % numSigmaVariables = 8;
