@@ -150,14 +150,25 @@ def load_10hz(hour_files):
     ]
     dfs = []
     for f in hour_files:
-        df = pd.read_csv(f, sep=r"\s+", header=None, names=headers,
-                         skiprows=list(range(8)))
-        ts_temp = df["Date"] + " " + df["Time"]
-        ts_fixed = [t.rsplit(":", 1)[0] + "." + t.rsplit(":", 1)[1]
-                    for t in ts_temp]
-        df["TIMESTAMP"] = pd.to_datetime(ts_fixed)
-        df.set_index("TIMESTAMP", inplace=True)
+        try:
+            df = pd.read_csv(f, sep=r"\s+", engine="python", header=None,
+                             names=headers, skiprows=list(range(8)),
+                             encoding="utf-8", encoding_errors="replace")
+        except Exception as exc:
+            print(f"  Warning: could not read {os.path.basename(f)}: {exc} — skipped.")
+            continue
+        try:
+            ts_temp = df["Date"] + " " + df["Time"]
+            ts_fixed = [t.rsplit(":", 1)[0] + "." + t.rsplit(":", 1)[1]
+                        for t in ts_temp]
+            df["TIMESTAMP"] = pd.to_datetime(ts_fixed)
+            df.set_index("TIMESTAMP", inplace=True)
+        except Exception as exc:
+            print(f"  Warning: timestamp parse failed for {os.path.basename(f)}: {exc} — skipped.")
+            continue
         dfs.append(df)
+    if not dfs:
+        return pd.DataFrame()
     return pd.concat(dfs, axis=0)
 
 
