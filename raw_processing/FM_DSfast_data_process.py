@@ -61,7 +61,9 @@ def _validate_fast(df, expected_date, expected_hz, label):
         print(f"  SKIP {label}: first timestamp {first_date} ≠ expected {expected_date.date()}.")
         return False
 
-    intervals_s = np.diff(df.index[:min(200, len(df))].asi8) / 1e9
+    # Cast to ns before asi8 — pandas 3.x stores ms-resolution index as µs in asi8
+    idx_ns      = df.index[:min(200, len(df))].astype('datetime64[ns]')
+    intervals_s = np.diff(idx_ns.view('int64')) / 1e9
     dt_s        = float(np.median(intervals_s))
     if dt_s <= 0:
         print(f"  SKIP {label}: cannot determine sampling frequency (dt={dt_s:.4f} s).")
