@@ -65,7 +65,7 @@ print(f"Output → {FM_processed_dir}")
 # Extracts to unzipfile_dir as YYYY-MM-DDTHHMMSS_smart3-00536.data files.
 moni       = [10, 11]      # October, November
 start_days = [7,   1]      # Oct data starts 7th; Nov from 1st
-end_days   = [31, 10]      # through Oct 31 and Nov 10
+end_days   = [31,  5]      # through Oct 31 and Nov 5 (data ends ~Nov 5 14:00)
 for mi in range(len(moni)):
     for di in range(start_days[mi] - 1, end_days[mi]):
         day = 1 + di
