@@ -32,11 +32,10 @@ else:  # Windows
     box_path = os.path.expanduser("~/Box")
 
 # READ-ONLY: smart3-00536 GHG archives (.ghg = ZIP format, half-hourly raw 10-Hz data)
-# Oct-Nov 2025: GHG archives must be unzipped before running — see unzip block below.
-# Verify this path on Windows before running.
+# Oct-Nov 2025 archives are in Lab Library under the 20250828_DOL50m_Data download folder.
 licor_zipfile_dir = os.path.join(
-    box_path, "Diane", "French Meadows", "data", "DOL_zipped",
-    "20251007-20251110")
+    box_path, "Lab Library", "French Meadows", "Summer2025",
+    "data", "20250828_DOL50m_Data", "2025-11-10", "50m_raw")
 
 # Folder to receive unzipped smart3 files (and already contains daqm .log files)
 unzipfile_dir = os.path.join(
