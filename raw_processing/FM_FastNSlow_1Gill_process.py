@@ -63,10 +63,11 @@ print(f"Output → {FM_processed_dir}")
 # ── unzip smart3-00536 GHG archives (10-Hz raw data) ─────────────────────────
 # Required for Oct-Nov: each half-hour is stored as a .ghg file (ZIP format).
 # Extracts to unzipfile_dir as YYYY-MM-DDTHHMMSS_smart3-00536.data files.
-moni      = [10, 11]       # October, November
-daylength = [31, 10]       # Oct: 31 days; Nov 1–10
+moni       = [10, 11]      # October, November
+start_days = [7,   1]      # Oct data starts 7th; Nov from 1st
+end_days   = [31, 10]      # through Oct 31 and Nov 10
 for mi in range(len(moni)):
-    for di in range(daylength[mi]):
+    for di in range(start_days[mi] - 1, end_days[mi]):
         day = 1 + di
         for hi in range(0, 24):
             for mi30 in [0, 30]:
