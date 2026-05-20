@@ -31,14 +31,14 @@ if platform.system() == "Darwin":
 else:  # Windows
     box_path = os.path.expanduser("~/Box")
 
-# READ-ONLY: raw LICOR daqm zip archives
-# Sep-Oct 2025 zip archives are not in Lab Library; data is already unzipped
-# in unzipfile_dir below. Update this path before uncommenting the unzip block.
+# READ-ONLY: smart3-00536 GHG archives (.ghg = ZIP format, half-hourly raw 10-Hz data)
+# Oct-Nov 2025: GHG archives must be unzipped before running — see unzip block below.
+# Verify this path on Windows before running.
 licor_zipfile_dir = os.path.join(
     box_path, "Diane", "French Meadows", "data", "DOL_zipped",
-    "20250901-20251110")
+    "20251007-20251110")
 
-# Folder containing unzipped daqm files
+# Folder to receive unzipped smart3 files (and already contains daqm .log files)
 unzipfile_dir = os.path.join(
     box_path, "Diane", "French Meadows", "data", "DOL_unziped",
     "20250901-20251110")
@@ -51,8 +51,8 @@ FM_1min_dir = os.path.join(
 
 # ── date range to process ─────────────────────────────────────────────────────
 # Modify these two lines for each processing run.
-start_date = datetime(2025, 9, 1)
-end_date   = datetime(2025, 10, 7)
+start_date = datetime(2025, 10, 7)
+end_date   = datetime(2025, 11, 10)
 
 # Output site folder (created automatically)
 site_folder_name = f"siteGill{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}"
@@ -60,20 +60,25 @@ FM_processed_dir = os.path.join(ROOT_PY, site_folder_name)
 os.makedirs(FM_processed_dir, exist_ok=True)
 print(f"Output → {FM_processed_dir}")
 
-# ── optional: unzip daqm archives ─────────────────────────────────────────────
-# Uncomment and adjust to extract raw daqm files for the relevant date range.
-# moni = [7, 8]
-# daylength = [9, 28]
-# for mi in range(len(moni)):
-#     for di in range(daylength[mi]):
-#         day = 23 + di if moni[mi] == 7 else 1 + di
-#         zipfile = os.path.join(licor_zipfile_dir,
-#                                f"2025-{moni[mi]:02}-{day:02}-000000-daqm.zip")
-#         if os.path.exists(zipfile):
-#             with ZipFile(zipfile, "r") as z:
-#                 z.extractall(unzipfile_dir)
-#         else:
-#             print(f"Missing: {zipfile}")
+# ── unzip smart3-00536 GHG archives (10-Hz raw data) ─────────────────────────
+# Required for Oct-Nov: each half-hour is stored as a .ghg file (ZIP format).
+# Extracts to unzipfile_dir as YYYY-MM-DDTHHMMSS_smart3-00536.data files.
+moni      = [10, 11]       # October, November
+daylength = [31, 10]       # Oct: 31 days; Nov 1–10
+for mi in range(len(moni)):
+    for di in range(daylength[mi]):
+        day = 1 + di
+        for hi in range(0, 24):
+            for mi30 in [0, 30]:
+                timestr = f"{hi:02}{mi30:02}00"
+                ghg_file = os.path.join(
+                    licor_zipfile_dir,
+                    f"2025-{moni[mi]:02}-{day:02}T{timestr}_smart3-00536.ghg")
+                if os.path.exists(ghg_file):
+                    with ZipFile(ghg_file, "r") as z:
+                        z.extractall(unzipfile_dir)
+                else:
+                    print(f"Missing: {os.path.basename(ghg_file)}")
 
 # ── timestamp validator ───────────────────────────────────────────────────────
 

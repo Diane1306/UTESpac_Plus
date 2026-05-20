@@ -15,6 +15,7 @@ CR1000X file-index reference:
   20250718_tall  HZ=10  startid=600  endid=627
   20250828_tall  HZ=20  startid=637  endid=674
   20251110_tall  HZ=20  startid=681  endid=717  (681 = 2025-09-01, confirmed)
+  20251110_tall  HZ=20  startid=717  endid=753  (717 = 2025-10-07, confirmed)
 """
 
 import os
@@ -45,13 +46,13 @@ unzipfile_dir = os.path.join(
 
 # ── date range / file indices ─────────────────────────────────────────────────
 # Modify these for each processing run.
-startid        = 681   # CR1000X file index for start date (2025-09-01)
-endid          = 717   # CR1000X file index for end date   (2025-10-07, exclusive)
+startid        = 717   # CR1000X file index for start date (2025-10-07)
+endid          = 753   # CR1000X file index for end date   (2025-11-10, exclusive)
 HZ             = [20]
 decimal_places = 2     # 20 Hz → 0.05 s resolution
 
-start_date = datetime(2025, 9, 1)
-end_date   = datetime(2025, 10, 7)
+start_date = datetime(2025, 10, 7)
+end_date   = datetime(2025, 11, 10)
 
 # Output site folder (created automatically)
 site_folder_name = f"siteIRGA{start_date.strftime('%Y%m%d')}_{end_date.strftime('%Y%m%d')}"
