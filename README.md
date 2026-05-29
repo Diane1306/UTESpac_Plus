@@ -12,12 +12,12 @@ pip3 install netCDF4   # optional — only needed when saveNetCDF=True
 
 ## Running the pipeline
 
-Edit the `info` dict at the top of `utespac_main.py` to set paths, averaging period, QC
-settings, and output options, then run:
+`raw_processing` provides sample code for generating formatted input for UTESpac package. Site folders includes sample `siteinfo` files. After generating formatted input and creating corresponding site folder, edit the `info` dict at the top of `utespac_main.py` to set paths, averaging period, QC settings, and output options, then run:
 
 ```bash
 python3 utespac_main.py
 ```
+Note that `python utespac_main.py --globalCalculation local` needs to be run first before running `python utespac_main.py` (default GPF).
 
 ---
 
@@ -29,22 +29,10 @@ Converts a MATLAB `siteInfo.m` site configuration file into the Python equivalen
 `find_files()` expects.  Run from the `UTESpac_Python/` directory.
 
 ```bash
-# Convert all site*/siteInfo.m files found under UTESpac_MATLAB/
-python3 convert_siteinfo.py
-
-# Convert a single site folder
-python3 convert_siteinfo.py UTESpac_MATLAB/siteFire1/
-
 # Convert an explicit .m file
 python3 convert_siteinfo.py UTESpac_MATLAB/siteGill/siteInfo.m
 
-# Preview the output without writing any files
-python3 convert_siteinfo.py --dry-run UTESpac_MATLAB/siteFire1/
-
-# Overwrite existing siteInfo.py without prompting
-python3 convert_siteinfo.py --force
 ```
-
 The script handles scalar values, numeric arrays (`[1 2 3]` or `[1, 2, 3]`), string cell
 arrays (`{'name'}`), and preserves inline `%` comments as `#` comments.
 
@@ -53,7 +41,7 @@ arrays (`{'name'}`), and preserves inline `%` comments as `#` comments.
 ### Generate AmeriFlux BASE data
 
 `generate_ameriflux.py` loads GPF `.pkl` output files from `siteIRGA` and `siteGill`,
-aggregates slow meteorology and radiation from the FM_DOL 1-min data files, and writes a
+aggregates slow meteorology and radiation from the 1-min data files, and writes a
 half-hourly AmeriFlux BASE CSV.  Edit the path constants at the top of the script before
 running.
 
