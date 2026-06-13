@@ -39,7 +39,7 @@ def wind_stats(output: Dict, sensor_info: Dict, table_names: List[str], info: Di
                 u_dir, v_dir = u_raw, v_raw
             elif manufact == 0:   # RMYoung: v = Campbell u
                 u_dir, v_dir = v_raw, u_raw * -1.0
-            else manufact == 2:   # Gill WindmasterPro
+            elif manufact == 2:   # Gill WindmasterPro
                 u_dir, v_dir = u_raw * -1.0, v_raw * -1.0
 
             direction = (np.degrees(np.arctan2(-v_dir, u_dir)) + bearing) % 360.0
