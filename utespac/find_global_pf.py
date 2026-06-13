@@ -32,7 +32,7 @@ def _compute_direction(u, v, bearing, manufact):
         u_dir, v_dir = v, u * -1
     elif manufact == 2:
         u_dir, v_dir = -u, -v
-    else:
+    else manufact == 1:
         u_dir, v_dir = u, v
     return np.mod(np.arctan2(-v_dir, u_dir) * 180.0 / np.pi + bearing, 360.0)
 
