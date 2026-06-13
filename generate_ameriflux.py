@@ -38,6 +38,7 @@ ROOT_PY = os.path.dirname(os.path.abspath(__file__))
 # !! CONFIGURE THIS PATH for your machine !!
 # Absolute path to the folder containing FM_DOL_1min_*.txt files.
 ROOT_1MIN = ""
+# ROOT_1MIN = "/Users/diane_wt/Library/CloudStorage/Box-Box/Lab Library/French Meadows/Summer2025/data/processed/FM_DOL_1min"
 
 OUT_DIR = os.path.join(ROOT_PY, "ameriflux_output")
 
