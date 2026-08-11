@@ -339,9 +339,8 @@ def fluxes(
                 u_tilt = v_tilt = w_tilt = np.full(len(t), np.nan)
 
             # ---- derived temperatures ----
-            Gamma     = 0.0098
-            theta_son = T_son + Gamma * (height - z_ref)
-            # theta_son_air is computed after q_ref_fast_local is set (uses level-specific q)
+            Gamma = 0.0098
+            # theta_son / theta_son_air are computed after q_ref_fast_local is set (uses level-specific q)
 
             # ---- height-specific pressure (use co-located IRGASON P if available) ----
             P_kPa_avg_lev = P_kPa_avg
@@ -464,8 +463,12 @@ def fluxes(
                         ])
                         output["specificHumHeader"].append(hdr)
 
-            # Use level-specific q for sonic air temperature (matches MATLAB qRefFastLocal)
-            theta_son_air = (T_son + 273.15) / (1.0 + 0.61 * q_ref_fast_local) - 273.15
+            # Use level-specific q for sonic virtual pot. temp and air temp (matches MATLAB qRefFastLocal)
+            # Schotanus humidity correction (0.51) recovers actual air temp from sonic virtual temp,
+            # then re-apply the lapse-rate offset and convert back to virtual pot. temp (0.61).
+            theta_son = ((T_son + 273.15) / (1.0 + 0.51 * q_ref_fast_local)
+                         + Gamma * (height - z_ref)) * (1.0 + 0.61 * q_ref_fast_local) - 273.15
+            theta_son_air = (T_son + 273.15) / (1.0 + 0.51 * q_ref_fast_local) - 273.15
 
             # ---- fw sensor at this height ----
             fw_data  = None
@@ -625,6 +628,7 @@ def fluxes(
                 raw["WD"]          = np.full((len(t), num_sonics), np.nan)
                 raw["spd"]         = np.full((len(t), num_sonics), np.nan)
                 raw["sonTs"]       = np.full((len(t), num_sonics), np.nan)
+                raw["T_son_air"]   = np.full((len(t), num_sonics), np.nan)
                 raw["Theta_v_son"] = np.full((len(t), num_sonics), np.nan)
                 raw["t"]           = t
                 raw["z"]           = np.full(num_sonics, np.nan)
@@ -647,6 +651,7 @@ def fluxes(
                 raw["v_tilt"][:, ii]      = pf_sonic_data[:, rv_col] if rv_col is not None else np.nan
                 raw["w_tilt"][:, ii]      = w_tilt
                 raw["sonTs"][:, ii]       = T_son
+                raw["T_son_air"][:, ii]   = theta_son_air
                 raw["Theta_v_son"][:, ii] = theta_son
                 raw["z"][ii]              = height
                 bearing = float(sensor_info["u"][ii, 3]) if sensor_info["u"].shape[1] > 3 else 0.0
@@ -922,6 +927,7 @@ def fluxes(
                 # ---- raw sonic/temperature storage ----
                 if save_raw:
                     raw["sonTs"][s0:s1, ii]       = T_son[s0:s1]
+                    raw["T_son_air"][s0:s1, ii]   = theta_son_air[s0:s1]
                     raw["Theta_v_son"][s0:s1, ii] = theta_son[s0:s1]
 
                 # ====================================================================

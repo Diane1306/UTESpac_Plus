@@ -554,8 +554,8 @@ try
             end
             
             % find sonic pot temp
-            thetaSon = Tson + Gamma*(sonHeight - zRef);
-            % thetaSon = ((Tson + 273.15)./(1+0.61*qRefFastLocal) + Gamma*(sonHeight - zRef)) .*(1+0.61*qRefFastLocal) - 273.15; % Modified by Diane to get sonic virtual potential temperature
+            % thetaSon = Tson + Gamma*(sonHeight - zRef);
+            thetaSon = ((Tson + 273.15)./(1+0.51*qRefFastLocal) + Gamma*(sonHeight - zRef)) .*(1+0.61*qRefFastLocal) - 273.15; % Modified by Diane to get sonic virtual potential temperature
             temp = simpleAvg([thetaSon t],info.avgPer);
             derivedT(:,end+1) = temp(:,1);
             % derivedTheader{end+1} = strcat(num2str(sonHeight),' m: theta_s_son');
@@ -573,7 +573,7 @@ try
             
             % find pot temp from sonic
             % thetaSonAir = thetaSon./(1+0.51*qRefFastLocal); % stull pg 7
-            thetaSonAir = (Tson + 273.15)./(1+0.61*qRefFastLocal) - 273.15; % stull pg 7, modified by Diane
+            thetaSonAir = (Tson + 273.15)./(1+0.51*qRefFastLocal) - 273.15; % Schotanus humidity correction, modified by Diane
             temp = simpleAvg([thetaSonAir t],info.avgPer);
             derivedT(:,end+1) = temp(:,1);
             % derivedTheader{end+1} = strcat(num2str(sonHeight),' m: theta_son');
@@ -954,6 +954,7 @@ try
                     raw.sonTs(bp(jj)+1:bp(jj+1),ii) = Tson(bp(jj)+1:bp(jj+1));
 %                     raw.sonTsPrime(bp(jj)+1:bp(jj+1),ii) = TsonP;
                     % raw.Theta_v_son(bp(jj)+1:bp(jj+1),ii) = thetaSonAir(bp(jj)+1:bp(jj+1));
+                    raw.T_son_air(bp(jj)+1:bp(jj+1),ii) = thetaSonAir(bp(jj)+1:bp(jj+1)); % Modified by Diane to get air temp from sonic
                     raw.Theta_v_son(bp(jj)+1:bp(jj+1),ii) = thetaSon(bp(jj)+1:bp(jj+1)); % Modified by Diane to get sonic virtual potential temperature
 %                     raw.Theta_v_sonPrime(bp(jj)+1:bp(jj+1),ii) = Theta_v_sonP;
                 end
