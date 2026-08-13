@@ -119,6 +119,7 @@ def fluxes(
 
     # --- reference temperature ---
     T_ref_K_avg: Optional[np.ndarray] = None
+    t_ref_from_sonic = False  # True when T_ref_K_avg is the raw (uncorrected) sonic temp, not actual air temp
     if "T" in sensor_info:
         idx_T  = int(np.argmin(np.abs(sensor_info["T"][:, 2] - z_ref)))
         T_tbl  = int(sensor_info["T"][idx_T, 0])
@@ -142,6 +143,7 @@ def fluxes(
             T_ref_K_avg = T_avg_mat[:, 0]
             if np.nanmedian(T_ref_K_avg) < 200:
                 T_ref_K_avg += 273.15
+            t_ref_from_sonic = True
             print(f"Using sonic T as Tref. Median = {np.nanmedian(T_ref_K_avg) - 273.15:.3g} °C")
         else:
             T_ref_K_avg = np.full(len(P_kPa_avg), 293.15)
@@ -193,6 +195,11 @@ def fluxes(
     else:
         q_ref_avg  = np.full(len(T_ref_K_avg), info.get("qRef", 12) / 1000.0)
         q_ref_fast = np.full(len(t),            info.get("qRef", 12) / 1000.0)
+
+    # Schotanus correction: recover actual air temp from sonic virtual temp when
+    # T_ref_K_avg came from the sonic rather than a slow-response T sensor.
+    if t_ref_from_sonic:
+        T_ref_K_avg = T_ref_K_avg / (1.0 + 0.51 * q_ref_avg)
 
     # --- moist-air density ---
     P_v_avg          = q_ref_avg * P_kPa_avg / 0.622

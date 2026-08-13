@@ -61,6 +61,7 @@ try
     end
     
     % find reference temperature nearest to zRef
+    TrefFromSonic = false; % tracks whether Tref_Kavg came from the sonic (needs Schotanus correction) or a slow-response T sensor (already actual air temp)
     if isfield(sensorInfo,'T')  % look for slow repsonse temperature first (HMP45/155)
         % find temperature closest to zRef
         [~, Tindex] = min(abs(sensorInfo.T(:,3)-zRef));  % find T closest to zRef
@@ -87,14 +88,15 @@ try
         T_tble = sensorInfo.Tson(Tindex,1);
         T_col = sensorInfo.Tson(Tindex,2);
         Tref_K = data{1,T_tble}(:,T_col); % reference sonic temperature in C or K
-        
+
         Tref_Kavg = simpleAvg([Tref_K, t],info.avgPer,0); % average down to avgPer
-        
-        
+
+
         % ensure Tref is in K
         if median(Tref_Kavg, 'omitmissing')<200
             Tref_Kavg = Tref_Kavg + 273.15;  % put sonTref_K in K
         end
+        TrefFromSonic = true; % Tref_Kavg is the raw (uncorrected) sonic temperature, not actual air temperature
         fprintf('No Slow Repsonse Temperature found, or slow response temperature is all NaNs! Median Reference Temperature from Sonic = %0.03g C\n',median(Tref_Kavg, 'omitmissing')-273.15)
     end
     
@@ -164,7 +166,7 @@ try
             rhovIRGA = data{1,rhoH2O_tble}(:,rhoH2O_col)*18/1000;  % Multiply by 18/1000 to go from mmol/mol to g/m^3
             rhov_t = data{1,rhoH2O_tble}(:,1);
             rhovIRGAavg = simpleAvg([rhovIRGA,rhov_t],info.avgPer);
-            disp('No slow-response RH found. qRef calculated from EC150') 
+            disp('No slow-response RH found. qRef calculated from LiH2O') 
         end
         qRefavg = (rhovIRGAavg(:,1)./1000)./(PkPaAvg*1000./(Rd*Tref_Kavg)); % kg/kg  rhoH2O/rhoAir
         x = rhovIRGAavg(~isnan(qRefavg),2);
@@ -178,8 +180,13 @@ try
         qRefFast = info.qRef./1000*ones(size(t));
         fprintf('No slow-response nor fast response RH found (or humidity measurement is all NaNs). qRef = %0.02g g/kg defined in INORMATION block is being used.',info.qRef)
     end
+
+    % correct sonic mean temperature to actual air temperature (Schotanus et al. 1983) if Tref_Kavg came from the sonic
+    if TrefFromSonic
+        Tref_Kavg = Tref_Kavg ./ (1+0.51*qRefavg);
+    end
     % store specific humidity in output
-    
+
     % find moist-air density, dry-air density and vapor density
     PvAvg = qRefavg.*PkPaAvg./0.622;  % partial pressure of water vapor (kPa)
     PdAvg = PkPaAvg-PvAvg; % partial pressure of dry air
