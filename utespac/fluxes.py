@@ -995,8 +995,8 @@ def fluxes(
                     LH_mat[jj, c_lh + 2] = EPF
                     if rot_flag[jj] or h2o_flag[jj]:
                         LH_mat[jj, c_lh + 2] = np.nan
-                    LH_mat[jj, c_lh + 3] = wpl * (np.nanmean(wPF_P * H2Op) / 1e3
-                                                    + rho_v_j / T_ref_j * np.nanmean(wPF_P * TairP))
+                    LH_mat[jj, c_lh + 3] = (LH_mat[jj, c_lh + 2] / 1e3
+                                             + np.nanmean(wPF_P * rhov_ext))  # kg/m3 m/s
                     if rot_flag[jj] or h2o_flag[jj]:
                         LH_mat[jj, c_lh + 3] = np.nan
                     LH_mat[jj, c_lh + 4] = (1000.0 * Lv * wpl

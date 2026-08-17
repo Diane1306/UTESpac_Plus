@@ -1148,11 +1148,12 @@ try
                     LHflux(jj,4+(ii-1)*numLHfluxVariables) = EPF; LHfluxHeader{4+(ii-1)*numLHfluxVariables} = strcat(num2str(sonHeight),'m wPF'':E(g/m^2s)');
                     if rotatedSonFlag(jj)||H2OFlag(jj); LHflux(jj,4+(ii-1)*numLHfluxVariables) = nan; end;
                     
-                    if info.useTrefHMP && isfield(sensorInfo,'RH') && isfield(sensorInfo,'T') && any(sensorInfo.RH(:,3) == sonHeight)
-                        LHflux(jj,5+(ii-1)*numLHfluxVariables) = (1+Md./Mv .* rho_H2OAvg(jj)./rho_airdryAvg(jj)).*(mean(wPF_P.*H2Op./1e3, 'omitmissing') + rho_H2OAvg(jj)./Tavg(jj).*mean(wPF_P.*T_air_sonP, 'omitmissing')); 
-                    else
-                        LHflux(jj,5+(ii-1)*numLHfluxVariables) = (1+Md./Mv .* rhovAvg(jj)./rhodAvg(jj)).*(mean(wPF_P.*H2Op./1e3, 'omitmissing') + rhovAvg(jj)./Tref_Kavg(jj).*mean(wPF_P.*T_air_sonP, 'omitmissing')); 
-                    end
+                    % if info.useTrefHMP && isfield(sensorInfo,'RH') && isfield(sensorInfo,'T') && any(sensorInfo.RH(:,3) == sonHeight)
+                    %     LHflux(jj,5+(ii-1)*numLHfluxVariables) = (1+Md./Mv .* rho_H2OAvg(jj)./rho_airdryAvg(jj)).*(mean(wPF_P.*H2Op./1e3, 'omitmissing') + rho_H2OAvg(jj)./Tavg(jj).*mean(wPF_P.*T_air_sonP, 'omitmissing')); 
+                    % else
+                    %     LHflux(jj,5+(ii-1)*numLHfluxVariables) = (1+Md./Mv .* rhovAvg(jj)./rhodAvg(jj)).*(mean(wPF_P.*H2Op./1e3, 'omitmissing') + rhovAvg(jj)./Tref_Kavg(jj).*mean(wPF_P.*T_air_sonP, 'omitmissing')); 
+                    % end
+                    LHflux(jj,5+(ii-1)*numLHfluxVariables) = LHflux(jj,4+(ii-1)*numLHfluxVariables) ./ 1e3 + mean(wPF_P.*rhov_externalp, 'omitmissing'); % kg/m3 m/s
                     LHfluxHeader{5+(ii-1)*numLHfluxVariables} = strcat(num2str(sonHeight),'m wPF''q_WPL''(m/s kg/m3)');
                     if rotatedSonFlag(jj)||H2OFlag(jj); LHflux(jj,5+(ii-1)*numLHfluxVariables) = nan; end;
                     
