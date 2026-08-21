@@ -282,31 +282,33 @@ for v_idx, height in enumerate(EC_HEIGHTS, start=1):
                 rho_col[loc] = rho_arr[pos_s]
                 r_col[loc]   = r_arr[pos_s]
                 vt_col[loc]  = vt_arr[pos_s]
-        cp_col = 1004.67 * (1.0 + 0.84 * r_col / 1000.0)
-        Lv_col = (2.501 - 0.00237 * (vt_col - 273.15)) * 1e6
     else:
         h_arr   = src["H"]
         rho_raw = h_arr[:, 1]
-        cp_raw  = h_arr[:, 2]
-        lv_raw  = _col("LHflux", "LHfluxHeader", f"{hn}m Lv(J/g)")
         rho_col = np.full(len(t_idx), np.nan)
-        cp_col  = np.full(len(t_idx), np.nan)
-        Lv_col  = np.full(len(t_idx), np.nan)
         for pos_t, pos_s in zip(hi.dropna().index, hi.dropna().astype(int).values):
             loc = t_idx.get_loc(pos_t)
             if pos_s < len(rho_raw):
                 rho_col[loc] = rho_raw[pos_s]
-                cp_col[loc]  = cp_raw[pos_s]
-                Lv_col[loc]  = lv_raw[loc] * 1000.0
         vt_col = np.full(len(t_idx), np.nan)
         r_col  = np.full(len(t_idx), np.nan)
 
     # ---- turbulent fluxes ----
-    thv_wPF = _col("H",       "Hheader",       f"{hn}m son:Theta_v'wPF'")
-    df[f"H_1_{v_idx}_1"] = rho_col * cp_col * thv_wPF
+    # H and LE follow CoherentStructure/MeanFlowStructure.m:
+    #   wq = H2Oflux_WPL / (rho_airmoist * (1 + r/1000))                       density flux -> specific humidity flux
+    #   H  = rho_airmoist * 1004.67 * (wTair + 0.84*(Tair+273.15)*wq)          Stull Eq. 10.7.1c
+    #   LE = rho_airmoist * (2.501 - 0.00237*Tair) * 1e6 * wq
+    # (uses the actual, non-virtual air temperature/flux — not Theta_v — since the
+    # 0.84 term already carries the humidity correction.)
+    ta_air_col = _col("derivedT", "derivedTheader", f"{height} m: T_son_air")    # deg C
+    wTair      = _col("H",        "Hheader",        f"{hn}m son:T_air'wPF'")    # K m/s
 
-    q_wpl = _col("LHflux", "LHfluxHeader", f"{hn}m wPF'q_WPL'(m/s kg/m3)")
-    df[f"LE_1_{v_idx}_1"] = Lv_col * q_wpl
+    q_wpl = _col("LHflux", "LHfluxHeader", f"{hn}m wPF'q_WPL'(m/s kg/m3)")       # WPL H2O density flux, kg/m2/s
+    with np.errstate(divide="ignore", invalid="ignore"):
+        wq = q_wpl / (rho_col * (1.0 + r_col / 1e3))                            # specific humidity flux, kg/kg m/s
+
+    df[f"H_1_{v_idx}_1"]  = rho_col * 1004.67 * (wTair + 0.84 * (ta_air_col + 273.15) * wq)
+    df[f"LE_1_{v_idx}_1"] = rho_col * (2.501 - 0.00237 * ta_air_col) * 1e6 * wq
 
     co2_wpl = _col("CO2flux", "CO2fluxHeader", f"{hn}m: wPF'CO2_WPL'(m/s kg/m^3)")
     df[f"FC_1_{v_idx}_1"] = co2_wpl / 44.01 * 1000.0 * 1e6
