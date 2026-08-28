@@ -614,20 +614,9 @@ try
                         else
                             PsonFastLocal = repelem(PsonAvg, diff(bp)); % no fast barometer: hold the 30-min mean pressure constant within each period
                         end
-
-                        % Diane: same bias-correction idea applied to temperature - use the fast sonic
-                        % temperature for its 20 Hz variability, but shift its 30-min mean to match the
-                        % local slow-response T (Tavg), the more trusted absolute reference
-                        TsonAvgLocal = simpleAvg([Tson, t],info.avgPer,0); % 30-min mean of Tson (deg C)
-                        TsonBiasLocal = (Tavg - 273.15) - TsonAvgLocal; % per-period offset needed to match the slow-T mean (deg C)
-                        TsonCorrected = Tson + repelem(TsonBiasLocal, diff(bp)); % deg C, fast Tson bias-corrected to slow T
-
-                        rhovFastLocalKgm3 = rhovFastLocal./1000; % kg/m^3
-                        TsonCorrected_K = TsonCorrected+273.15;
-                        qRefFastLocal_fromRhov = rhovFastLocalKgm3 ./ (rhovFastLocalKgm3 + (PsonFastLocal.*1000 - rhovFastLocalKgm3.*Rv.*TsonCorrected_K)./(Rd*TsonCorrected_K)); % kg/kg, exact q from rho_v, P, T, at sonic frequency
-                        qRefavgLocal_fromRhov = simpleAvg([qRefFastLocal_fromRhov, t],info.avgPer,0); % 30-min mean of the fast-derived series
-                        biasLocal = qRefavgLocal - qRefavgLocal_fromRhov; % per-period offset needed to match the slow-RH mean
-                        qRefFastLocal = qRefFastLocal_fromRhov + repelem(biasLocal, diff(bp));
+                        % bias-corrected to the local slow RH/T mean (qRefavgLocal, Tavg)
+                        qRefFastLocal = localFastQFromRhov(rhovFastLocal, PsonFastLocal, Tson, t, bp, ...
+                            info.avgPer, qRefavgLocal, Tavg, Rd, Rv);
                     else
                         qRefFastLocal = interp1(x,y,t);  % interpolate qRef to Sonic Frequency
                     end
@@ -661,9 +650,30 @@ try
                     qRefFastLocal = qRefFast;
                 end
             else
-                qRefFastLocal = qRefFast;
+                % Diane: no co-located slow RH/T at this height, but a fast IRGA/KH2O water vapor density
+                % may still exist here. Build a genuinely fast qRefFastLocal from it, bias-corrected to the
+                % site-level reference (qRefavg/Tref_Kavg near zRef) instead of a local slow reference.
+                rhovFastLocal = [];
+                if ~isempty(irgaH2O)
+                    rhovFastLocal = irgaH2O; % g/m^3
+                elseif ~isempty(KH2O)
+                    rhovFastLocal = KH2O; % g/m^3
+                end
+
+                if ~isempty(rhovFastLocal)
+                    if isfield(sensorInfo,'P')
+                        PsonFastLocal = Pson;
+                    else
+                        PsonFastLocal = repelem(PsonAvg, diff(bp));
+                    end
+                    % bias-corrected to the site-level reference (qRefavg, Tref_Kavg)
+                    qRefFastLocal = localFastQFromRhov(rhovFastLocal, PsonFastLocal, Tson, t, bp, ...
+                        info.avgPer, qRefavg, Tref_Kavg, Rd, Rv);
+                else
+                    qRefFastLocal = qRefFast;
+                end
             end
-            
+
             % find fw pot temp
             Gamma = 0.0098; % Dry Lapse Rate. K/m
             if ~isempty(fw)
@@ -1539,4 +1549,22 @@ catch err
         output.warnings{end+1,1} = message;
     end
 end
+end
+
+function qFastLocal = localFastQFromRhov(rhovFastLocal, PsonFastLocal, Tson, t, bp, avgPer, qAvgTarget, TavgTargetK, Rd, Rv)
+% Diane: build a fast (sonic-frequency) specific humidity from a fast water vapor density
+% (rhovFastLocal, g/m^3), fast pressure (PsonFastLocal, kPa), and the fast sonic temperature
+% (Tson, deg C). Both the sonic temperature and the resulting q are bias-corrected per averaging
+% period so their 30-min means match a trusted reference (TavgTargetK, K; qAvgTarget, kg/kg) -
+% either the local slow RH/T at this height, or the site-level reference near zRef.
+    TsonAvgLocal = simpleAvg([Tson, t], avgPer, 0); % 30-min mean of Tson (deg C)
+    TsonBiasLocal = (TavgTargetK - 273.15) - TsonAvgLocal; % per-period offset to match the reference T mean (deg C)
+    TsonCorrected_K = Tson + repelem(TsonBiasLocal, diff(bp)) + 273.15; % K
+
+    rhovKgm3 = rhovFastLocal ./ 1000; % kg/m^3
+    qFast = rhovKgm3 ./ (rhovKgm3 + (PsonFastLocal.*1000 - rhovKgm3.*Rv.*TsonCorrected_K)./(Rd*TsonCorrected_K)); % kg/kg, exact q from rho_v, P, T
+
+    qAvgFast = simpleAvg([qFast, t], avgPer, 0); % 30-min mean of the fast-derived series
+    biasLocal = qAvgTarget - qAvgFast; % per-period offset to match the reference q mean
+    qFastLocal = qFast + repelem(biasLocal, diff(bp));
 end
