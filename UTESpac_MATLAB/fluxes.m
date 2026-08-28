@@ -10,7 +10,7 @@ end
 try
     %---------------- FIND REFERENCE VALUES
     % constants
-    Rd = 287.058;  % [J/K/kg] Gas constant for air
+    Rd = 287.058;  % [J/K/kg] Gas constant for dry air
     Rv = 461.495;  % [J/K/kg] Gas constant for water vapor
     
     % find sonic time stamps
@@ -168,7 +168,8 @@ try
             rhovIRGAavg = simpleAvg([rhovIRGA,rhov_t],info.avgPer);
             disp('No slow-response RH found. qRef calculated from LiH2O') 
         end
-        qRefavg = (rhovIRGAavg(:,1)./1000)./(PkPaAvg*1000./(Rd*Tref_Kavg)); % kg/kg  rhoH2O/rhoAir
+        rhovKgm3 = rhovIRGAavg(:,1)./1000; % kg/m^3
+        qRefavg = rhovKgm3 ./ (rhovKgm3 + (PkPaAvg*1000 - rhovKgm3.*Rv.*Tref_Kavg)./(Rd*Tref_Kavg)); % kg/kg, exact q from rho_v, P, T; Diane
         x = rhovIRGAavg(~isnan(qRefavg),2);
         x = [floor(x(1)); x];
         y = qRefavg(~isnan(qRefavg));
@@ -621,7 +622,9 @@ try
                         TsonBiasLocal = (Tavg - 273.15) - TsonAvgLocal; % per-period offset needed to match the slow-T mean (deg C)
                         TsonCorrected = Tson + repelem(TsonBiasLocal, diff(bp)); % deg C, fast Tson bias-corrected to slow T
 
-                        qRefFastLocal_fromRhov = (rhovFastLocal./1000) ./ (PsonFastLocal.*1000./(Rd*(TsonCorrected+273.15))); % kg/kg, at sonic frequency
+                        rhovFastLocalKgm3 = rhovFastLocal./1000; % kg/m^3
+                        TsonCorrected_K = TsonCorrected+273.15;
+                        qRefFastLocal_fromRhov = rhovFastLocalKgm3 ./ (rhovFastLocalKgm3 + (PsonFastLocal.*1000 - rhovFastLocalKgm3.*Rv.*TsonCorrected_K)./(Rd*TsonCorrected_K)); % kg/kg, exact q from rho_v, P, T, at sonic frequency
                         qRefavgLocal_fromRhov = simpleAvg([qRefFastLocal_fromRhov, t],info.avgPer,0); % 30-min mean of the fast-derived series
                         biasLocal = qRefavgLocal - qRefavgLocal_fromRhov; % per-period offset needed to match the slow-RH mean
                         qRefFastLocal = qRefFastLocal_fromRhov + repelem(biasLocal, diff(bp));

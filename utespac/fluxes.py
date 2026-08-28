@@ -181,8 +181,9 @@ def fluxes(
         h2o_avg_mat = simple_avg(np.column_stack([h2o_raw, h2o_t]), info["avgPer"])
         h2o_avg_t   = h2o_avg_mat[:, -1]
         h2o_avg     = h2o_avg_mat[:, 0]              # g/m³ averaged
-        rho_air_ref = P_kPa_avg * 1000.0 / (Rd * T_ref_K_avg)   # kg/m³ dry-air density
-        q_ref_avg   = (h2o_avg / 1000.0) / rho_air_ref           # kg/kg
+        rho_v_ref = h2o_avg / 1000.0  # kg/m³
+        P_ref_Pa  = P_kPa_avg * 1000.0
+        q_ref_avg = rho_v_ref / (rho_v_ref + (P_ref_Pa - rho_v_ref * Rv * T_ref_K_avg) / (Rd * T_ref_K_avg))  # kg/kg, exact q from rho_v, P, T
         valid = ~np.isnan(q_ref_avg)
         if valid.any():
             x = np.concatenate([[np.floor(h2o_avg_t[valid][0])], h2o_avg_t[valid]])
@@ -588,10 +589,14 @@ def fluxes(
                             Tson_bias_local = (T_avg_30_K - 273.15) - Tson_avg_local  # deg C
                             Tson_corrected = T_son + np.repeat(Tson_bias_local, np.diff(bp))  # deg C
 
-                            q_ref_fast_local_from_rhov = (
-                                (rhov_fast_local / 1000.0)
-                                / (P_fast_local * 1000.0 / (Rd * (Tson_corrected + 273.15)))
-                            )  # kg/kg, at sonic frequency
+                            rho_v_fast_local = rhov_fast_local / 1000.0  # kg/m³
+                            P_fast_local_Pa  = P_fast_local * 1000.0
+                            Tson_corrected_K = Tson_corrected + 273.15
+                            q_ref_fast_local_from_rhov = rho_v_fast_local / (
+                                rho_v_fast_local
+                                + (P_fast_local_Pa - rho_v_fast_local * Rv * Tson_corrected_K)
+                                / (Rd * Tson_corrected_K)
+                            )  # kg/kg, exact q from rho_v, P, T, at sonic frequency
                             q_avg_local_from_rhov = simple_avg(
                                 np.column_stack([q_ref_fast_local_from_rhov, t]), info["avgPer"])[:, 0]
                             bias_local = q_avg_30 - q_avg_local_from_rhov
