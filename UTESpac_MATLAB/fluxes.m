@@ -457,14 +457,93 @@ try
                 fwFlag = [];
             end
             
+            % find H2O and CO2 columns if they exist (moved earlier so the fast IRGA/KH2O water vapor
+            % density is available below for qRefFastLocal; Diane)
+            if isfield(sensorInfo,'irgaH2O') && ~isempty(sensorInfo.irgaH2O(sensorInfo.irgaH2O(:,3)==sonHeight,2)) % EC150
+                irgaH2Ocol = sensorInfo.irgaH2O(sensorInfo.irgaH2O(:,3)==sonHeight,2);
+                irgaGasDiagCol = sensorInfo.irgaGasDiag(sensorInfo.irgaGasDiag(:,3)==sonHeight,2);
+                irgaH2OSigCol = sensorInfo.irgaH2OsigStrength(sensorInfo.irgaH2OsigStrength(:,3)==sonHeight,2);
+                irgaH2O = data{1,tble}(:,irgaH2Ocol);
+                nanFlagTableName = [tableNames{tble},'NanFlag'];
+                spikeFlagTableName = [tableNames{tble},'SpikeFlag'];
+                H2ONanFlag = output.(nanFlagTableName)(:,irgaH2Ocol);
+                H2OSpikeFlag = output.(spikeFlagTableName)(:,irgaH2Ocol);
+                H2OsigFlag = output.(tableNames{tble})(:,irgaH2OSigCol);
+                H2OsigFlag(H2OsigFlag > info.diagnosticTest.H2OminSignal) = 0;
+                H2OsigFlag(isnan(H2OsigFlag)) = 0;
+                gasDiagFlag = output.(tableNames{tble})(:,irgaGasDiagCol);
+                gasDiagFlag(gasDiagFlag < info.diagnosticTest.meanGasDiagnosticLimit) = 0;
+                gasDiagFlag(isnan(gasDiagFlag)) = 0;
+                H2OFlag = logical(H2ONanFlag+H2OSpikeFlag+H2OsigFlag+gasDiagFlag);
+            elseif isfield(sensorInfo,'LiH2O') && ~isempty(sensorInfo.LiH2O(sensorInfo.LiH2O(:,3)==sonHeight,2)) % Li7500
+                irgaH2Ocol = sensorInfo.LiH2O(sensorInfo.LiH2O(:,3)==sonHeight,2);
+                irgaH2O = data{1,tble}(:,irgaH2Ocol)*0.018; % convert from mmol/m^3 to g/m^3
+                nanFlagTableName = [tableNames{tble},'NanFlag'];
+                spikeFlagTableName = [tableNames{tble},'SpikeFlag'];
+                H2ONanFlag = output.(nanFlagTableName)(:,irgaH2Ocol);
+                H2OSpikeFlag = output.(spikeFlagTableName)(:,irgaH2Ocol);
+                % check for LiCor diagnostic flag
+                if isfield(sensorInfo,'LiGasDiag')
+                    irgaGasDiagCol = sensorInfo.LiGasDiag(sensorInfo.LiGasDiag(:,3)==sonHeight,2);
+                    gasDiagFlag = output.(tableNames{tble})(:,irgaGasDiagCol);
+                    gasDiagFlag(gasDiagFlag > info.diagnosticTest.meanLiGasDiagnosticLimit) = 0;
+                    gasDiagFlag(isnan(gasDiagFlag)) = 0;
+                else
+                    gasDiagFlag = false(size(H2ONanFlag));
+                end
+                H2OFlag = logical(H2ONanFlag+H2OSpikeFlag+gasDiagFlag);
+            else
+                irgaH2O = [];
+                H2OFlag = [];
+            end
+
+            if isfield(sensorInfo,'irgaCO2') && ~isempty(sensorInfo.irgaCO2(sensorInfo.irgaCO2(:,3)==sonHeight,2)) % EC150
+                irgaCO2col = sensorInfo.irgaCO2(sensorInfo.irgaCO2(:,3)==sonHeight,2);
+                irgaCO2SigCol = sensorInfo.irgaCO2sigStrength(sensorInfo.irgaCO2sigStrength(:,3)==sonHeight,2);
+                irgaCO2 = data{1,tble}(:,irgaCO2col);
+                CO2sigFlag = output.(tableNames{tble})(:,irgaCO2SigCol);
+                CO2sigFlag(CO2sigFlag > info.diagnosticTest.CO2minSignal) = 0;
+                CO2sigFlag(isnan(CO2sigFlag)) = 0;
+                nanFlagTableName = [tableNames{tble},'NanFlag'];
+                spikeFlagTableName = [tableNames{tble},'SpikeFlag'];
+                CO2NanFlag = output.(nanFlagTableName)(:,irgaCO2col);
+                CO2SpikeFlag = output.(spikeFlagTableName)(:,irgaCO2col);
+                CO2Flag = logical(CO2NanFlag+CO2SpikeFlag+gasDiagFlag+CO2sigFlag);
+            elseif isfield(sensorInfo,'LiCO2') && ~isempty(sensorInfo.LiCO2(sensorInfo.LiCO2(:,3)==sonHeight,2))%Li7500
+                irgaCO2col = sensorInfo.LiCO2(sensorInfo.LiCO2(:,3)==sonHeight,2);
+                irgaCO2 = data{1,tble}(:,irgaCO2col)*44; % Mult by 44 to convert from mmol/m^3 to mg/m^3
+                nanFlagTableName = [tableNames{tble},'NanFlag'];
+                spikeFlagTableName = [tableNames{tble},'SpikeFlag'];
+                CO2NanFlag = output.(nanFlagTableName)(:,irgaCO2col);
+                CO2SpikeFlag = output.(spikeFlagTableName)(:,irgaCO2col);
+                CO2Flag = logical(CO2NanFlag+CO2SpikeFlag+gasDiagFlag);
+            else
+                irgaCO2 = [];
+                CO2Flag = [];
+            end
+            if isfield(sensorInfo,'KH2O')
+                KH2Ocol = sensorInfo.KH2O(sensorInfo.KH2O(:,3)==sonHeight,2);
+                KH2O = data{1,tble}(:,KH2Ocol);
+                nanFlagTableName = [tableNames{tble},'NanFlag'];
+                spikeFlagTableName = [tableNames{tble},'SpikeFlag'];
+                H2ONanFlag = output.(nanFlagTableName)(:,KH2Ocol);
+                H2OSpikeFlag = output.(spikeFlagTableName)(:,KH2Ocol);
+                H2OFlag = logical(H2ONanFlag+H2OSpikeFlag);
+            elseif isfield(sensorInfo,'irgaH2O') || isfield(sensorInfo,'LiH2O') % don't delete H2O flag if irga exists!
+                KH2O = [];
+            else
+                KH2O = [];
+                H2OFlag = [];
+            end
+
             % find specific humidity at level if HMP exists
             if isfield(sensorInfo,'RH') && isfield(sensorInfo,'T') && any(sensorInfo.RH(:,3) == sonHeight)
-                
+
                 % find RH at sensor level
                 RHtble = sensorInfo.RH(sensorInfo.RH(:,3)==sonHeight,1);
                 RHcol = sensorInfo.RH(sensorInfo.RH(:,3)==sonHeight,2);
                 RHavg = simpleAvg([data{1,RHtble}(:,RHcol), data{1,RHtble}(:,1)],info.avgPer,0);
-                
+
                 % find T at sensor level
                 Ttble = sensorInfo.T(sensorInfo.T(:,3)==sonHeight,1);
                 Tcol = sensorInfo.T(sensorInfo.T(:,3)==sonHeight,2);
@@ -478,7 +557,7 @@ try
                     levelHeight = sonHeight;
                     if isfield(info,'shiftsSonHeight') % manual shifts to HMP height
                         for shifti=1:length(info.shiftsSonHeight)
-                            if abs(sonHeight - info.shiftsSonHeight(shifti)) < 0.01 
+                            if abs(sonHeight - info.shiftsSonHeight(shifti)) < 0.01
                                 levelHeight = info.shiftsHMPHeight(shifti);
                                 break
                             end
@@ -491,23 +570,23 @@ try
                     rho_airdryAvg = simpleAvg([rho_airdrySlowFreq, Timestamp1min],info.avgPer,0);  % density of dry air (kg/m^3)
                     rho_H2OAvg = simpleAvg([rho_H2OSlowFreq, Timestamp1min],info.avgPer,0);  % density of dry air (kg/m^3)
                 end
-                
+
                 % put Tavg in K
                 if median(Tavg, 'omitmissing') < 250; Tavg = Tavg + 273.15; end
-                
+
                 % intialize specific humidity output, populate col 1 with time stamps
                 if ~isfield(output,'specificHum')
                     output.specificHum = t(bp(2:end));
                     output.specificHumHeader = cell(1);
                     output.specificHumHeader{1} = 'time';
                 end
-                
+
                 % find qRefLocal and qRefFastLocal
                 qRefavgLocal = RHtoSpecHum(RHavg, PsonAvg, Tavg);   % ← was PkPaAvg; qRefavgLocal = RHtoSpecHum(RHavg,PkPaAvg,Tavg);
                 x = RHavg_t(~isnan(qRefavgLocal));
                 if isempty(x)  % if all NaNs, use qRef (non-local)
                     qRefFastLocal = qRefFast;
-                    
+
                     % store nan'd data at height
                     output.specificHum(:,end+1) = qRefavgLocal*nan;
                     output.specificHumHeader{end+1} = sprintf('%g m: q(g/g)',sonHeight);
@@ -515,8 +594,41 @@ try
                     x = [floor(x(1)); x];
                     y = qRefavgLocal(~isnan(qRefavgLocal));
                     y = [y(1); y];
-                    qRefFastLocal = interp1(x,y,t);  % interpolate qRef to Sonic Frequency
-                    
+
+                    % Diane: prefer a genuinely fast (sonic-frequency) qRefFastLocal built from the local
+                    % fast-response IRGA/KH2O water vapor density when available, instead of just
+                    % interpolating the slow-RH block means. Bias-correct its 30-min mean to match
+                    % qRefavgLocal (the trusted slow-RH-derived reference) so the result carries real
+                    % 20 Hz variability from the fast sensor without shifting the period-mean.
+                    rhovFastLocal = [];
+                    if ~isempty(irgaH2O)
+                        rhovFastLocal = irgaH2O; % g/m^3
+                    elseif ~isempty(KH2O)
+                        rhovFastLocal = KH2O; % g/m^3
+                    end
+
+                    if ~isempty(rhovFastLocal)
+                        if isfield(sensorInfo,'P')
+                            PsonFastLocal = Pson;
+                        else
+                            PsonFastLocal = repelem(PsonAvg, diff(bp)); % no fast barometer: hold the 30-min mean pressure constant within each period
+                        end
+
+                        % Diane: same bias-correction idea applied to temperature - use the fast sonic
+                        % temperature for its 20 Hz variability, but shift its 30-min mean to match the
+                        % local slow-response T (Tavg), the more trusted absolute reference
+                        TsonAvgLocal = simpleAvg([Tson, t],info.avgPer,0); % 30-min mean of Tson (deg C)
+                        TsonBiasLocal = (Tavg - 273.15) - TsonAvgLocal; % per-period offset needed to match the slow-T mean (deg C)
+                        TsonCorrected = Tson + repelem(TsonBiasLocal, diff(bp)); % deg C, fast Tson bias-corrected to slow T
+
+                        qRefFastLocal_fromRhov = (rhovFastLocal./1000) ./ (PsonFastLocal.*1000./(Rd*(TsonCorrected+273.15))); % kg/kg, at sonic frequency
+                        qRefavgLocal_fromRhov = simpleAvg([qRefFastLocal_fromRhov, t],info.avgPer,0); % 30-min mean of the fast-derived series
+                        biasLocal = qRefavgLocal - qRefavgLocal_fromRhov; % per-period offset needed to match the slow-RH mean
+                        qRefFastLocal = qRefFastLocal_fromRhov + repelem(biasLocal, diff(bp));
+                    else
+                        qRefFastLocal = interp1(x,y,t);  % interpolate qRef to Sonic Frequency
+                    end
+
                     % store data
                     output.specificHum(:,end+1) = qRefavgLocal.*1000;
                     output.specificHumHeader{end+1} = sprintf('%g m: q(g/kg)',sonHeight);
@@ -585,85 +697,7 @@ try
             derivedT(:,end+1) = temp(:,1);
             % derivedTheader{end+1} = strcat(num2str(sonHeight),' m: theta_son');
             derivedTheader{end+1} = strcat(num2str(sonHeight),' m: T_son_air'); % by Diane
-            
-            % find H2O and CO2 columns if they exist
-            if isfield(sensorInfo,'irgaH2O') && ~isempty(sensorInfo.irgaH2O(sensorInfo.irgaH2O(:,3)==sonHeight,2)) % EC150
-                irgaH2Ocol = sensorInfo.irgaH2O(sensorInfo.irgaH2O(:,3)==sonHeight,2);
-                irgaGasDiagCol = sensorInfo.irgaGasDiag(sensorInfo.irgaGasDiag(:,3)==sonHeight,2);
-                irgaH2OSigCol = sensorInfo.irgaH2OsigStrength(sensorInfo.irgaH2OsigStrength(:,3)==sonHeight,2);
-                irgaH2O = data{1,tble}(:,irgaH2Ocol);
-                nanFlagTableName = [tableNames{tble},'NanFlag'];
-                spikeFlagTableName = [tableNames{tble},'SpikeFlag'];
-                H2ONanFlag = output.(nanFlagTableName)(:,irgaH2Ocol);
-                H2OSpikeFlag = output.(spikeFlagTableName)(:,irgaH2Ocol);
-                H2OsigFlag = output.(tableNames{tble})(:,irgaH2OSigCol);
-                H2OsigFlag(H2OsigFlag > info.diagnosticTest.H2OminSignal) = 0;
-                H2OsigFlag(isnan(H2OsigFlag)) = 0;
-                gasDiagFlag = output.(tableNames{tble})(:,irgaGasDiagCol);
-                gasDiagFlag(gasDiagFlag < info.diagnosticTest.meanGasDiagnosticLimit) = 0;
-                gasDiagFlag(isnan(gasDiagFlag)) = 0;
-                H2OFlag = logical(H2ONanFlag+H2OSpikeFlag+H2OsigFlag+gasDiagFlag);
-            elseif isfield(sensorInfo,'LiH2O') && ~isempty(sensorInfo.LiH2O(sensorInfo.LiH2O(:,3)==sonHeight,2)) % Li7500
-                irgaH2Ocol = sensorInfo.LiH2O(sensorInfo.LiH2O(:,3)==sonHeight,2);
-                irgaH2O = data{1,tble}(:,irgaH2Ocol)*0.018; % convert from mmol/m^3 to g/m^3
-                nanFlagTableName = [tableNames{tble},'NanFlag'];
-                spikeFlagTableName = [tableNames{tble},'SpikeFlag'];
-                H2ONanFlag = output.(nanFlagTableName)(:,irgaH2Ocol);
-                H2OSpikeFlag = output.(spikeFlagTableName)(:,irgaH2Ocol);
-                % check for LiCor diagnostic flag
-                if isfield(sensorInfo,'LiGasDiag')
-                    irgaGasDiagCol = sensorInfo.LiGasDiag(sensorInfo.LiGasDiag(:,3)==sonHeight,2);
-                    gasDiagFlag = output.(tableNames{tble})(:,irgaGasDiagCol);
-                    gasDiagFlag(gasDiagFlag > info.diagnosticTest.meanLiGasDiagnosticLimit) = 0;
-                    gasDiagFlag(isnan(gasDiagFlag)) = 0;
-                else
-                    gasDiagFlag = false(size(H2ONanFlag));                    
-                end               
-                H2OFlag = logical(H2ONanFlag+H2OSpikeFlag+gasDiagFlag);
-            else
-                irgaH2O = [];
-                H2OFlag = [];
-            end
-            
-            if isfield(sensorInfo,'irgaCO2') && ~isempty(sensorInfo.irgaCO2(sensorInfo.irgaCO2(:,3)==sonHeight,2)) % EC150
-                irgaCO2col = sensorInfo.irgaCO2(sensorInfo.irgaCO2(:,3)==sonHeight,2);
-                irgaCO2SigCol = sensorInfo.irgaCO2sigStrength(sensorInfo.irgaCO2sigStrength(:,3)==sonHeight,2);
-                irgaCO2 = data{1,tble}(:,irgaCO2col);  
-                CO2sigFlag = output.(tableNames{tble})(:,irgaCO2SigCol);
-                CO2sigFlag(CO2sigFlag > info.diagnosticTest.CO2minSignal) = 0;
-                CO2sigFlag(isnan(CO2sigFlag)) = 0;
-                nanFlagTableName = [tableNames{tble},'NanFlag'];
-                spikeFlagTableName = [tableNames{tble},'SpikeFlag'];
-                CO2NanFlag = output.(nanFlagTableName)(:,irgaCO2col);
-                CO2SpikeFlag = output.(spikeFlagTableName)(:,irgaCO2col);
-                CO2Flag = logical(CO2NanFlag+CO2SpikeFlag+gasDiagFlag+CO2sigFlag);
-            elseif isfield(sensorInfo,'LiCO2') && ~isempty(sensorInfo.LiCO2(sensorInfo.LiCO2(:,3)==sonHeight,2))%Li7500
-                irgaCO2col = sensorInfo.LiCO2(sensorInfo.LiCO2(:,3)==sonHeight,2);
-                irgaCO2 = data{1,tble}(:,irgaCO2col)*44; % Mult by 44 to convert from mmol/m^3 to mg/m^3
-                nanFlagTableName = [tableNames{tble},'NanFlag'];
-                spikeFlagTableName = [tableNames{tble},'SpikeFlag'];
-                CO2NanFlag = output.(nanFlagTableName)(:,irgaCO2col);
-                CO2SpikeFlag = output.(spikeFlagTableName)(:,irgaCO2col);
-                CO2Flag = logical(CO2NanFlag+CO2SpikeFlag+gasDiagFlag);
-            else
-                irgaCO2 = [];
-                CO2Flag = [];
-            end
-            if isfield(sensorInfo,'KH2O')
-                KH2Ocol = sensorInfo.KH2O(sensorInfo.KH2O(:,3)==sonHeight,2);
-                KH2O = data{1,tble}(:,KH2Ocol);
-                nanFlagTableName = [tableNames{tble},'NanFlag'];
-                spikeFlagTableName = [tableNames{tble},'SpikeFlag'];
-                H2ONanFlag = output.(nanFlagTableName)(:,KH2Ocol);
-                H2OSpikeFlag = output.(spikeFlagTableName)(:,KH2Ocol);
-                H2OFlag = logical(H2ONanFlag+H2OSpikeFlag);
-            elseif isfield(sensorInfo,'irgaH2O') || isfield(sensorInfo,'LiH2O') % don't delete H2O flag if irga exists!
-                KH2O = [];
-            else
-                KH2O = [];
-                H2OFlag = [];
-            end
-            
+
             %--------------------- ITERATE THROUGH ALL TIME STEPS
             for jj = 1:N
                 % reset optional scalar variables for this averaging period

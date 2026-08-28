@@ -372,133 +372,8 @@ def fluxes(
                         P_raw_hf_lev  = P_raw_lev
                         P_t_hf_lev    = P_t_lev
 
-            # ---- level-specific humidity (useTrefHMP path) ----
-            q_ref_fast_local = q_ref_fast.copy()
-            virtual_theta_avg_local = None
-            if info.get("useTrefHMP") and "RH" in sensor_info and "T" in sensor_info:
-                rh_rows = sensor_info["RH"][:, 2] == height
-                t_rows  = sensor_info["T"][:, 2]  == height
-                if rh_rows.any() and t_rows.any():
-                    RH_tbl2 = int(sensor_info["RH"][rh_rows, 0][0])
-                    RH_col2 = int(sensor_info["RH"][rh_rows, 1][0])
-                    T_tbl2  = int(sensor_info["T"][t_rows, 0][0])
-                    T_col2  = int(sensor_info["T"][t_rows, 1][0])
-                    freq_slow = info.get("avgSlowFreq", 1)
-                    RH_lev = data[RH_tbl2][:, RH_col2]
-                    T_lev  = data[T_tbl2][:, T_col2]
-                    t_lev  = data[RH_tbl2][:, 0]
-
-                    # slow-freq averages for virtual theta computation
-                    T1_mat  = simple_avg(np.column_stack([T_lev, t_lev]),
-                                        freq_slow, return_timestamps=True)
-                    RH1_mat = simple_avg(np.column_stack([RH_lev, t_lev]),
-                                        freq_slow, return_timestamps=True)
-                    ts1 = T1_mat[:, -1]
-                    P_slow = np.interp(ts1,
-                                       np.linspace(t.min(), t.max(), len(P_kPa_avg_lev)),
-                                       P_kPa_avg_lev)
-                    # If shiftsSonHeight is set, use the paired physical HMP height
-                    # for the altitude correction instead of the sonic height.
-                    level_height = height
-                    for _sh, _hh in zip(info.get("shiftsSonHeight", []),
-                                        info.get("shiftsHMPHeight", [])):
-                        if abs(height - _sh) < 0.01:
-                            level_height = _hh
-                            break
-
-                    vt_slow, r_slow, rho_moist_slow, rho_dry_slow, rho_H2O_slow = \
-                        get_virtual_pot_temp(altitude, level_height - z_ref,
-                                             T1_mat[:, 0], RH1_mat[:, 0],
-                                             P_slow, use_p_elevation=False)
-
-                    # average all slow-freq outputs to 30-min
-                    def _avg30(arr):
-                        m = simple_avg(np.column_stack([arr, ts1]),
-                                       info["avgPer"], return_timestamps=False)
-                        return m[:, 0] if m.shape[1] > 0 else np.full(N, np.nan)
-
-                    vt_avg30        = _avg30(vt_slow)
-                    r_avg30         = _avg30(r_slow)
-                    rho_moist_avg30 = _avg30(rho_moist_slow)
-                    rho_dry_avg30   = _avg30(rho_dry_slow)
-                    rho_H2O_avg30   = _avg30(rho_H2O_slow)
-                    virtual_theta_avg_local = vt_avg30
-
-                    # 30-min q from HMP at this level → q_ref_fast_local (matches MATLAB)
-                    T_avg_30_mat  = simple_avg(np.column_stack([T_lev, t_lev]),
-                                               info["avgPer"], return_timestamps=True)
-                    RH_avg_30_mat = simple_avg(np.column_stack([RH_lev, t_lev]),
-                                               info["avgPer"], return_timestamps=True)
-                    T_avg_30_K = T_avg_30_mat[:, 0].copy()
-                    if np.nanmedian(T_avg_30_K) < 200:
-                        T_avg_30_K = T_avg_30_K + 273.15
-                    q_avg_30 = rh_to_spec_hum(RH_avg_30_mat[:, 0], P_kPa_avg_lev,
-                                              T_avg_30_K)  # kg/kg, 30-min
-                    valid_q = ~np.isnan(q_avg_30)
-                    if valid_q.any():
-                        t_q = RH_avg_30_mat[:, -1]
-                        x_q = np.concatenate([[np.floor(t_q[valid_q][0])], t_q[valid_q]])
-                        y_q = np.concatenate([[q_avg_30[valid_q][0]], q_avg_30[valid_q]])
-                        q_ref_fast_local = np.interp(t, x_q, y_q)
-
-                    # --- store in output["specificHum"] ---
-                    def _pad(arr):
-                        if len(arr) >= N:
-                            return arr[:N]
-                        return np.concatenate([arr, np.full(N - len(arr), np.nan)])
-
-                    if "specificHum" not in output:
-                        t_bp = np.array([t[min(bp[jj + 1] - 1, len(t) - 1)]
-                                         for jj in range(N)])
-                        output["specificHum"]       = t_bp.reshape(-1, 1)
-                        output["specificHumHeader"] = ["time"]
-
-                    q_col = _pad(q_avg_30 * 1000.0) if valid_q.any() else _pad(q_avg_30)
-                    q_hdr = f"{height} m: q(g/kg)" if valid_q.any() else f"{height} m: q(g/g)"
-                    nrows = output["specificHum"].shape[0]
-                    for col_data, hdr in [
-                        (q_col,                   q_hdr),
-                        (_pad(vt_avg30),           f"{height} m: virtualThetaAvg(K)"),
-                        (_pad(r_avg30),            f"{height} m: rAvg(g/kg)"),
-                        (_pad(rho_moist_avg30),    f"{height} m: rho_airmoistAvg(kg/m^3)"),
-                        (_pad(rho_dry_avg30),      f"{height} m: rho_airdryAvg(kg/m^3)"),
-                        (_pad(rho_H2O_avg30),      f"{height} m: rho_H2OAvg(kg/m^3)"),
-                    ]:
-                        output["specificHum"] = np.column_stack([
-                            output["specificHum"],
-                            np.asarray(col_data)[:nrows].reshape(-1, 1),
-                        ])
-                        output["specificHumHeader"].append(hdr)
-
-            # Use level-specific q for sonic virtual pot. temp and air temp (matches MATLAB qRefFastLocal)
-            # Schotanus humidity correction (0.51) recovers actual air temp from sonic virtual temp,
-            # then re-apply the lapse-rate offset and convert back to virtual pot. temp (0.61).
-            theta_son = ((T_son + 273.15) / (1.0 + 0.51 * q_ref_fast_local)
-                         + Gamma * (height - z_ref)) * (1.0 + 0.61 * q_ref_fast_local) - 273.15
-            theta_son_air = (T_son + 273.15) / (1.0 + 0.51 * q_ref_fast_local) - 273.15
-
-            # ---- fw sensor at this height ----
-            fw_data  = None
-            fw_flag  = np.zeros(N, dtype=bool)
-            theta_fw = None
-            Vtheta_fw = None
-            if "fw" in sensor_info:
-                fw_loc = _get_sensor_col(sensor_info, "fw", height)
-                if fw_loc is not None:
-                    fw_tbl, fw_col2 = fw_loc
-                    fw_data = data[fw_tbl][:, fw_col2].copy()
-                    nf_fw = output.get(f"{table_names[fw_tbl]}NanFlag",
-                                       np.zeros((N, fw_col2 + 1), dtype=bool))
-                    sf_fw = output.get(f"{table_names[fw_tbl]}SpikeFlag",
-                                       np.zeros((N, fw_col2 + 1), dtype=bool))
-                    fw_flag = (nf_fw[:, fw_col2] if fw_col2 < nf_fw.shape[1] else
-                               np.zeros(N, dtype=bool)) | \
-                              (sf_fw[:, fw_col2] if fw_col2 < sf_fw.shape[1] else
-                               np.zeros(N, dtype=bool))
-                    theta_fw  = fw_data + Gamma * (height - z_ref)
-                    Vtheta_fw = theta_fw * (1.0 + 0.61 * q_ref_fast)
-
-            # ---- H2O sensor at this height ----
+            # ---- H2O sensor at this height (moved earlier so the fast IRGA/KH2O water vapor
+            # density is available below for q_ref_fast_local; Diane) ----
             h2o_data: Optional[np.ndarray] = None
             h2o_flag = np.zeros(N, dtype=bool)
             h2o_is_kh2o = False  # True when H2O comes from KH2O (krypton hygrometer)
@@ -623,6 +498,163 @@ def fluxes(
                     lco2_nf = nf_lc[:, lco2_col] if lco2_col < nf_lc.shape[1] else np.zeros(N, bool)
                     lco2_sf = sf_lc[:, lco2_col] if lco2_col < sf_lc.shape[1] else np.zeros(N, bool)
                     co2_flag = lco2_nf | lco2_sf
+
+            # ---- level-specific humidity (useTrefHMP path) ----
+            q_ref_fast_local = q_ref_fast.copy()
+            virtual_theta_avg_local = None
+            if info.get("useTrefHMP") and "RH" in sensor_info and "T" in sensor_info:
+                rh_rows = sensor_info["RH"][:, 2] == height
+                t_rows  = sensor_info["T"][:, 2]  == height
+                if rh_rows.any() and t_rows.any():
+                    RH_tbl2 = int(sensor_info["RH"][rh_rows, 0][0])
+                    RH_col2 = int(sensor_info["RH"][rh_rows, 1][0])
+                    T_tbl2  = int(sensor_info["T"][t_rows, 0][0])
+                    T_col2  = int(sensor_info["T"][t_rows, 1][0])
+                    freq_slow = info.get("avgSlowFreq", 1)
+                    RH_lev = data[RH_tbl2][:, RH_col2]
+                    T_lev  = data[T_tbl2][:, T_col2]
+                    t_lev  = data[RH_tbl2][:, 0]
+
+                    # slow-freq averages for virtual theta computation
+                    T1_mat  = simple_avg(np.column_stack([T_lev, t_lev]),
+                                        freq_slow, return_timestamps=True)
+                    RH1_mat = simple_avg(np.column_stack([RH_lev, t_lev]),
+                                        freq_slow, return_timestamps=True)
+                    ts1 = T1_mat[:, -1]
+                    P_slow = np.interp(ts1,
+                                       np.linspace(t.min(), t.max(), len(P_kPa_avg_lev)),
+                                       P_kPa_avg_lev)
+                    # If shiftsSonHeight is set, use the paired physical HMP height
+                    # for the altitude correction instead of the sonic height.
+                    level_height = height
+                    for _sh, _hh in zip(info.get("shiftsSonHeight", []),
+                                        info.get("shiftsHMPHeight", [])):
+                        if abs(height - _sh) < 0.01:
+                            level_height = _hh
+                            break
+
+                    vt_slow, r_slow, rho_moist_slow, rho_dry_slow, rho_H2O_slow = \
+                        get_virtual_pot_temp(altitude, level_height - z_ref,
+                                             T1_mat[:, 0], RH1_mat[:, 0],
+                                             P_slow, use_p_elevation=False)
+
+                    # average all slow-freq outputs to 30-min
+                    def _avg30(arr):
+                        m = simple_avg(np.column_stack([arr, ts1]),
+                                       info["avgPer"], return_timestamps=False)
+                        return m[:, 0] if m.shape[1] > 0 else np.full(N, np.nan)
+
+                    vt_avg30        = _avg30(vt_slow)
+                    r_avg30         = _avg30(r_slow)
+                    rho_moist_avg30 = _avg30(rho_moist_slow)
+                    rho_dry_avg30   = _avg30(rho_dry_slow)
+                    rho_H2O_avg30   = _avg30(rho_H2O_slow)
+                    virtual_theta_avg_local = vt_avg30
+
+                    # 30-min q from HMP at this level → q_ref_fast_local (matches MATLAB)
+                    T_avg_30_mat  = simple_avg(np.column_stack([T_lev, t_lev]),
+                                               info["avgPer"], return_timestamps=True)
+                    RH_avg_30_mat = simple_avg(np.column_stack([RH_lev, t_lev]),
+                                               info["avgPer"], return_timestamps=True)
+                    T_avg_30_K = T_avg_30_mat[:, 0].copy()
+                    if np.nanmedian(T_avg_30_K) < 200:
+                        T_avg_30_K = T_avg_30_K + 273.15
+                    q_avg_30 = rh_to_spec_hum(RH_avg_30_mat[:, 0], P_kPa_avg_lev,
+                                              T_avg_30_K)  # kg/kg, 30-min
+                    valid_q = ~np.isnan(q_avg_30)
+                    if valid_q.any():
+                        t_q = RH_avg_30_mat[:, -1]
+                        x_q = np.concatenate([[np.floor(t_q[valid_q][0])], t_q[valid_q]])
+                        y_q = np.concatenate([[q_avg_30[valid_q][0]], q_avg_30[valid_q]])
+
+                        # Diane: prefer a genuinely fast (sonic-frequency) q_ref_fast_local built from the
+                        # local fast-response IRGA/KH2O water vapor density when available, instead of just
+                        # interpolating the slow-RH block means. Bias-correct its 30-min mean to match
+                        # q_avg_30 (the trusted slow-RH-derived reference) so the result carries real 20 Hz
+                        # variability from the fast sensor without shifting the period-mean.
+                        rhov_fast_local = h2o_data
+
+                        if rhov_fast_local is not None:
+                            if P_raw_hf_lev is not None:
+                                P_fast_local = np.interp(t, P_t_hf_lev, P_raw_hf_lev)
+                            else:
+                                P_fast_local = np.interp(
+                                    t, np.linspace(t.min(), t.max(), len(P_kPa_avg_lev)), P_kPa_avg_lev)
+
+                            # same bias-correction idea applied to temperature: use the fast sonic
+                            # temperature for its 20 Hz variability, but shift its 30-min mean to match
+                            # the local slow-response T (T_avg_30_K), the more trusted absolute reference
+                            Tson_avg_local = simple_avg(np.column_stack([T_son, t]), info["avgPer"])[:, 0]
+                            Tson_bias_local = (T_avg_30_K - 273.15) - Tson_avg_local  # deg C
+                            Tson_corrected = T_son + np.repeat(Tson_bias_local, np.diff(bp))  # deg C
+
+                            q_ref_fast_local_from_rhov = (
+                                (rhov_fast_local / 1000.0)
+                                / (P_fast_local * 1000.0 / (Rd * (Tson_corrected + 273.15)))
+                            )  # kg/kg, at sonic frequency
+                            q_avg_local_from_rhov = simple_avg(
+                                np.column_stack([q_ref_fast_local_from_rhov, t]), info["avgPer"])[:, 0]
+                            bias_local = q_avg_30 - q_avg_local_from_rhov
+                            q_ref_fast_local = q_ref_fast_local_from_rhov + np.repeat(bias_local, np.diff(bp))
+                        else:
+                            q_ref_fast_local = np.interp(t, x_q, y_q)
+
+                    # --- store in output["specificHum"] ---
+                    def _pad(arr):
+                        if len(arr) >= N:
+                            return arr[:N]
+                        return np.concatenate([arr, np.full(N - len(arr), np.nan)])
+
+                    if "specificHum" not in output:
+                        t_bp = np.array([t[min(bp[jj + 1] - 1, len(t) - 1)]
+                                         for jj in range(N)])
+                        output["specificHum"]       = t_bp.reshape(-1, 1)
+                        output["specificHumHeader"] = ["time"]
+
+                    q_col = _pad(q_avg_30 * 1000.0) if valid_q.any() else _pad(q_avg_30)
+                    q_hdr = f"{height} m: q(g/kg)" if valid_q.any() else f"{height} m: q(g/g)"
+                    nrows = output["specificHum"].shape[0]
+                    for col_data, hdr in [
+                        (q_col,                   q_hdr),
+                        (_pad(vt_avg30),           f"{height} m: virtualThetaAvg(K)"),
+                        (_pad(r_avg30),            f"{height} m: rAvg(g/kg)"),
+                        (_pad(rho_moist_avg30),    f"{height} m: rho_airmoistAvg(kg/m^3)"),
+                        (_pad(rho_dry_avg30),      f"{height} m: rho_airdryAvg(kg/m^3)"),
+                        (_pad(rho_H2O_avg30),      f"{height} m: rho_H2OAvg(kg/m^3)"),
+                    ]:
+                        output["specificHum"] = np.column_stack([
+                            output["specificHum"],
+                            np.asarray(col_data)[:nrows].reshape(-1, 1),
+                        ])
+                        output["specificHumHeader"].append(hdr)
+
+            # Use level-specific q for sonic virtual pot. temp and air temp (matches MATLAB qRefFastLocal)
+            # Schotanus humidity correction (0.51) recovers actual air temp from sonic virtual temp,
+            # then re-apply the lapse-rate offset and convert back to virtual pot. temp (0.61).
+            theta_son = ((T_son + 273.15) / (1.0 + 0.51 * q_ref_fast_local)
+                         + Gamma * (height - z_ref)) * (1.0 + 0.61 * q_ref_fast_local) - 273.15
+            theta_son_air = (T_son + 273.15) / (1.0 + 0.51 * q_ref_fast_local) - 273.15
+
+            # ---- fw sensor at this height ----
+            fw_data  = None
+            fw_flag  = np.zeros(N, dtype=bool)
+            theta_fw = None
+            Vtheta_fw = None
+            if "fw" in sensor_info:
+                fw_loc = _get_sensor_col(sensor_info, "fw", height)
+                if fw_loc is not None:
+                    fw_tbl, fw_col2 = fw_loc
+                    fw_data = data[fw_tbl][:, fw_col2].copy()
+                    nf_fw = output.get(f"{table_names[fw_tbl]}NanFlag",
+                                       np.zeros((N, fw_col2 + 1), dtype=bool))
+                    sf_fw = output.get(f"{table_names[fw_tbl]}SpikeFlag",
+                                       np.zeros((N, fw_col2 + 1), dtype=bool))
+                    fw_flag = (nf_fw[:, fw_col2] if fw_col2 < nf_fw.shape[1] else
+                               np.zeros(N, dtype=bool)) | \
+                              (sf_fw[:, fw_col2] if fw_col2 < sf_fw.shape[1] else
+                               np.zeros(N, dtype=bool))
+                    theta_fw  = fw_data + Gamma * (height - z_ref)
+                    Vtheta_fw = theta_fw * (1.0 + 0.61 * q_ref_fast)
 
             # ---- initialise raw arrays on first sonic ----
             if save_raw and ii == 0:
