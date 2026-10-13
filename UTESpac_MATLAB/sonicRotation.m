@@ -65,8 +65,8 @@ if isfield(sensorInfo,'u')
                             
                             % find local coefficients
                             localCoef = PFinfo.(sprintf('cm_%g',sonHeight*100)).(dateBins{jj}).(dirBins{kk});
-                            b1 = localCoef(1);
-                            b2 = localCoef(2);
+                            b1 = localCoef(2); % Original UTESpac WRONG: b1 = localCoef(1);
+                            b2 = localCoef(3); % Original UTESpac WRONG: b2 = localCoef(2);
                             
                             % find Values of B C and D matrices
                             p31 = -b1/(b1^2+b2^2+1)^0.5;

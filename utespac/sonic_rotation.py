@@ -127,7 +127,8 @@ def sonic_rotation(
 
                         # MATLAB sonicRotation uses localCoef(1) and localCoef(2)
                         # (1-indexed), i.e. Python indices [0] and [1] = [b0, b1_stored]
-                        b1, b2 = float(coef[0]), float(coef[1])
+                        # 2026/10/13: corrected both python and Matlab ports for using b1 and b2
+                        b1, b2 = float(coef[1]), float(coef[2])
                         P = _build_pf_matrix(b1, b2)
                         wind_pf[row_mask, :] = (P @ np.column_stack([u[row_mask], v[row_mask], w[row_mask]]).T).T
 
