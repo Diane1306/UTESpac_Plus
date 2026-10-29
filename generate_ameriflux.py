@@ -295,7 +295,7 @@ for v_idx, height in enumerate(EC_HEIGHTS, start=1):
 
     # ---- turbulent fluxes ----
     # H and LE follow CoherentStructure/MeanFlowStructure.m:
-    #   wq = H2Oflux_WPL / (rho_airmoist * (1 + r/1000))                       density flux -> specific humidity flux
+    #   wq = H2Oflux_WPL / rho_airmoist                                        density flux -> specific humidity flux
     #   H  = rho_airmoist * 1004.67 * (wTair + 0.84*(Tair+273.15)*wq)          Stull Eq. 10.7.1c
     #   LE = rho_airmoist * (2.501 - 0.00237*Tair) * 1e6 * wq
     # (uses the actual, non-virtual air temperature/flux — not Theta_v — since the
@@ -305,7 +305,7 @@ for v_idx, height in enumerate(EC_HEIGHTS, start=1):
 
     q_wpl = _col("LHflux", "LHfluxHeader", f"{hn}m wPF'q_WPL'(m/s kg/m3)")       # WPL H2O density flux, kg/m2/s
     with np.errstate(divide="ignore", invalid="ignore"):
-        wq = q_wpl / (rho_col * (1.0 + r_col / 1e3))                            # specific humidity flux, kg/kg m/s
+        wq = q_wpl / rho_col                                                    # specific humidity flux, kg/kg m/s
 
     df[f"H_1_{v_idx}_1"]  = rho_col * 1004.67 * (wTair + 0.84 * (ta_air_col + 273.15) * wq)
     df[f"LE_1_{v_idx}_1"] = rho_col * (2.501 - 0.00237 * ta_air_col) * 1e6 * wq
