@@ -273,15 +273,18 @@ for v_idx, height in enumerate(EC_HEIGHTS, start=1):
         rho_arr = get_col(sh, sh_hdr, f"{lhn}rho_airmoistAvg(kg/m^3)")
         r_arr   = get_col(sh, sh_hdr, f"{lhn}rAvg(g/kg)")
         vt_arr  = get_col(sh, sh_hdr, f"{lhn}virtualThetaAvg(K)")
+        q_arr   = get_col(sh, sh_hdr, f"{lhn}q(g/kg)")
         rho_col = np.full(len(t_idx), np.nan)
         r_col   = np.full(len(t_idx), np.nan)
         vt_col  = np.full(len(t_idx), np.nan)
+        q_col   = np.full(len(t_idx), np.nan)
         for pos_t, pos_s in zip(hi.dropna().index, hi.dropna().astype(int).values):
             loc = t_idx.get_loc(pos_t)
             if pos_s < len(rho_arr):
                 rho_col[loc] = rho_arr[pos_s]
                 r_col[loc]   = r_arr[pos_s]
                 vt_col[loc]  = vt_arr[pos_s]
+                q_col[loc]   = q_arr[pos_s]
     else:
         h_arr   = src["H"]
         rho_raw = h_arr[:, 1]
@@ -292,14 +295,16 @@ for v_idx, height in enumerate(EC_HEIGHTS, start=1):
                 rho_col[loc] = rho_raw[pos_s]
         vt_col = np.full(len(t_idx), np.nan)
         r_col  = np.full(len(t_idx), np.nan)
+        q_col  = np.full(len(t_idx), np.nan)
 
     # ---- turbulent fluxes ----
     # H and LE follow CoherentStructure/MeanFlowStructure.m:
-    #   wq = H2Oflux_WPL / rho_airmoist                                        density flux -> specific humidity flux
-    #   H  = rho_airmoist * 1004.67 * (wTair + 0.84*(Tair+273.15)*wq)          Stull Eq. 10.7.1c
+    #   wq = H2Oflux_WPL / rho_airmoist                              density flux -> specific humidity flux
+    #   H  = rho_airmoist * cp_moist * wTair,  cp_moist = 1004.67*(1 + 0.84*q)
     #   LE = rho_airmoist * (2.501 - 0.00237*Tair) * 1e6 * wq
-    # (uses the actual, non-virtual air temperature/flux — not Theta_v — since the
-    # 0.84 term already carries the humidity correction.)
+    # (uses the actual, non-virtual air temperature/flux — not Theta_v; the humidity
+    # correction enters through the moist-air heat capacity.  q is stored in g/kg,
+    # hence the /1000 to convert to kg/kg.)
     ta_air_col = _col("derivedT", "derivedTheader", f"{height} m: T_son_air")    # deg C
     wTair      = _col("H",        "Hheader",        f"{hn}m son:T_air'wPF'")    # K m/s
 
@@ -307,7 +312,8 @@ for v_idx, height in enumerate(EC_HEIGHTS, start=1):
     with np.errstate(divide="ignore", invalid="ignore"):
         wq = q_wpl / rho_col                                                    # specific humidity flux, kg/kg m/s
 
-    df[f"H_1_{v_idx}_1"]  = rho_col * 1004.67 * (wTair + 0.84 * (ta_air_col + 273.15) * wq)
+    cp_moist = 1004.67 * (1.0 + 0.84 * q_col / 1000.0)
+    df[f"H_1_{v_idx}_1"]  = rho_col * cp_moist * wTair
     df[f"LE_1_{v_idx}_1"] = rho_col * (2.501 - 0.00237 * ta_air_col) * 1e6 * wq
 
     co2_wpl = _col("CO2flux", "CO2fluxHeader", f"{hn}m: wPF'CO2_WPL'(m/s kg/m^3)")
